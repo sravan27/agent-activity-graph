@@ -32,8 +32,8 @@ def build_incident_detail(session: Session, incident_id: str) -> IncidentDetail:
         (index for index, event in enumerate(events) if event.event_id == incident.trigger_event_id),
         0,
     )
-    start = max(trigger_index - 1, 0)
-    end = min(trigger_index + 2, len(events))
+    start = max(trigger_index - 2, 0)
+    end = min(trigger_index + 3, len(events))
     related_events = events[start:end]
     replay = build_replay_timeline(session, incident.workflow_id, persist=False)
 
@@ -44,4 +44,3 @@ def build_incident_detail(session: Session, incident_id: str) -> IncidentDetail:
         related_events=related_events,
         replay=replay,
     )
-

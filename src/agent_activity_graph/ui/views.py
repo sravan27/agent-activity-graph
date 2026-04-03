@@ -28,7 +28,15 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 
 def _workflow_context(events: list) -> dict:
-    metadata = events[0].metadata if events else {}
+    metadata: dict = {}
+    for event in reversed(events):
+        event_metadata = getattr(event, "metadata", None) or {}
+        for key, value in event_metadata.items():
+            if key in metadata:
+                continue
+            if value is None or value == "":
+                continue
+            metadata[key] = value
     return {
         "invoice_amount": metadata.get("invoice_amount"),
         "currency": metadata.get("currency", "USD"),

@@ -65,10 +65,20 @@ def _event_kind(event: WorkflowEvent) -> str:
 
 def _workflow_business_consequence(events: list[WorkflowEvent]) -> str | None:
     preferred = [
-        event for event in events if event.action_type == "policy_evaluation" and event.metadata.get("business_consequence")
+        event
+        for event in events
+        if event.action_type == "policy_evaluation"
+        and event.policy_status != PolicyStatus.ALLOWED
+        and event.metadata.get("business_consequence")
     ]
     if preferred:
-        return str(preferred[0].metadata["business_consequence"])
+        return str(preferred[-1].metadata["business_consequence"])
+
+    policy_events = [
+        event for event in events if event.action_type == "policy_evaluation" and event.metadata.get("business_consequence")
+    ]
+    if policy_events:
+        return str(policy_events[-1].metadata["business_consequence"])
 
     for event in reversed(events):
         consequence = event.metadata.get("business_consequence")
@@ -88,7 +98,12 @@ def _entry_business_consequence(event: WorkflowEvent) -> str | None:
 
 
 def _policy_story(events: list[WorkflowEvent]) -> str:
-    for event in events:
+    for event in reversed(events):
+        explanation = _policy_explanation(event)
+        if event.action_type == "policy_evaluation" and event.policy_status != PolicyStatus.ALLOWED and explanation:
+            return explanation
+
+    for event in reversed(events):
         explanation = _policy_explanation(event)
         if event.action_type == "policy_evaluation" and explanation:
             return explanation
@@ -124,8 +139,9 @@ def _summary_headline(
 def _build_highlights(entries: list[ReplayEntry]) -> list[ReplayHighlight]:
     highlights: list[ReplayHighlight] = []
 
-    def add_highlight(label: str, predicate, severity: str) -> None:
-        for entry in entries:
+    def add_highlight(label: str, predicate, severity: str, *, latest: bool = False) -> None:
+        ordered_entries = reversed(entries) if latest else entries
+        for entry in ordered_entries:
             if predicate(entry):
                 highlights.append(
                     ReplayHighlight(
@@ -138,9 +154,9 @@ def _build_highlights(entries: list[ReplayEntry]) -> list[ReplayHighlight]:
                 return
 
     add_highlight("Agent action", lambda entry: entry.event_kind == "agent_action", "info")
-    add_highlight("Policy gate", lambda entry: entry.event_kind == "policy_evaluation", "medium")
+    add_highlight("Policy gate", lambda entry: entry.event_kind == "policy_evaluation", "medium", latest=True)
     add_highlight("Blocked path", lambda entry: entry.blocked, "high")
-    add_highlight("Human intervention", lambda entry: entry.human_intervention, "medium")
+    add_highlight("Human intervention", lambda entry: entry.human_intervention, "medium", latest=True)
 
     if entries:
         last = entries[-1]
