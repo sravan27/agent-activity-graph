@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Agent Activity Graph | Incident {{ detail.incident.incident_id }}{% endblock %}
+{% block content %}
+  <section class="panel" style="border: 1px solid var(--border-strong); border-top: 4px solid var(--risk);">
+    <div class="hero-split" style="gap: 1rem;">
+      <div>
+        <div class="label" style="color: var(--risk);">Incident detail</div>
+        <h2 class="section-title" style="margin-top: 0.5rem;">{{ detail.incident.title }}</h2>
+        <p>{{ evidence_pack.executive_summary }}</p>
+        <div class="toolbar" style="margin-top: 1.25rem;">
+          <a class="button-link" href="/workflows/{{ detail.workflow.workflow_id }}/replay">Open replay</a>
+          <a class="button-link button-link--primary" href="/incidents/{{ detail.incident.incident_id }}/evidence-pack">Review evidence pack</a>
+          <a class="button-link" href="/incidents/{{ detail.incident.incident_id }}/evidence-pack.md">Download markdown</a>
+        </div>
+      </div>
+      <div class="signal-grid" style="gap: 0.75rem;">
+        <div class="signal-card signal-card--risk" style="background: var(--risk-bg);">
+          <div class="eyebrow" style="color: var(--risk);">Severity</div>
+          <strong style="display: inline-block; margin-bottom: 0.5rem;"><span class="badge badge--{{ detail.incident.severity }}">{{ detail.incident.severity }}</span></strong>
+          <p style="color: var(--text-main);">{{ detail.incident.explanation }}</p>
+        </div>
+        <div class="signal-card">
+          <div class="eyebrow">Why it mattered</div>
+          <strong style="font-size: 1rem; color: var(--text-main);">{{ detail.replay.business_consequence or workflow_context.business_consequence }}</strong>
+          <p>Risk category: {{ evidence_pack.risk_category.replace("_", " ") if evidence_pack.risk_category else "n/a" }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="summary-bar" style="margin-top: 1.5rem; border-color: var(--border-strong);">
+      <div class="summary-box">
+        <div class="label">Workflow</div>
+        <div class="value mono" style="font-size: 0.9375rem;">{{ detail.workflow.workflow_id }}</div>
+      </div>
+      <div class="summary-box">
+        <div class="label">Business object</div>
+        <div class="value mono" style="font-size: 0.9375rem;">{{ detail.workflow.business_object_id }}</div>
+      </div>
+      <div class="summary-box">
+        <div class="label">Final outcome</div>
+        <div class="value"><span class="badge badge--{{ detail.replay.final_outcome }}">{{ detail.replay.final_outcome.replace("_", " ") }}</span></div>
+      </div>
+      <div class="summary-box">
+        <div class="label">Risk category</div>
+        <div class="value" style="font-size: 1rem;">{{ evidence_pack.risk_category.replace("_", " ") if evidence_pack.risk_category else "n/a" }}</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid grid--2" style="margin-top: 1rem; gap: 1rem;">
+    <div class="panel">
+      <div class="label" style="margin-bottom: 0.75rem; color: var(--risk);">Trigger Event</div>
+      <div class="timeline-card timeline-card--blocked_action" style="padding-top: 1rem; padding-bottom: 1rem;">
+        <div class="card-header">
+          <div>
+            <div class="helper">{{ detail.trigger_event.timestamp.strftime("%Y-%m-%d %H:%M:%S UTC") }}</div>
+            <h3>{{ detail.trigger_event.metadata.get("headline", detail.trigger_event.process_step) }}</h3>
+          </div>
+          <span class="badge badge--{{ detail.trigger_event.policy_status.value }}">{{ detail.trigger_event.policy_status.value.replace("_", " ") }}</span>
+        </div>
+        <div class="card-body">
+          <p style="font-size: 1rem; color: var(--text-main); font-weight: 600;">{{ detail.trigger_event.action_summary }}</p>
+          <div class="fact-grid" style="margin-top: 1rem;">
+            <div class="fact">
+              <strong>Actor</strong>
+              <p>{{ detail.trigger_event.actor_name }}</p>
+            </div>
+            <div class="fact">
+              <strong>Scope</strong>
+              <p class="mono">{{ detail.trigger_event.permission_scope or "n/a" }}</p>
+            </div>
+            <div class="fact">
+              <strong>System</strong>
+              <p>{{ detail.trigger_event.target_system or "n/a" }}</p>
+            </div>
+            <div class="fact">
+              <strong>Outcome</strong>
+              <p>{{ detail.trigger_event.outcome_status.value.replace("_", " ") }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="label" style="margin-bottom: 0.75rem;">Incident findings</div>
+      <div style="display: grid; gap: 0.75rem;">
+        {% for finding in evidence_pack.findings %}
+          {% set finding_is_risk = finding.label == 'Blocked path' or finding.label == 'Incident trigger' %}
+          {% set finding_is_human = finding.label == 'Human intervention' %}
+          <div class="detail-note {% if finding_is_risk %}detail-note--risk{% elif finding_is_human %}detail-note--human{% elif finding.label == 'Policy gate' %}detail-note--warn{% else %}detail-note--policy{% endif %}" style="margin-top: 0;">
+            <div class="card-header" style="margin-bottom: 0.25rem;">
+              <h3>{{ finding.label }}</h3>
+              <span class="badge badge--{{ finding.severity }}">{{ finding.severity }}</span>
+            </div>
+            <p>{{ finding.detail }}</p>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="grid grid--2" style="margin-top: 1rem; gap: 1rem;">
+    <div class="panel">
+      <div class="label" style="margin-bottom: 1rem;">Relevant evidence window</div>
+      <div style="overflow-y: auto; max-height: 420px; padding-right: 0.5rem; border: 1px solid var(--border); background: var(--surface-muted);">
+        <table style="width: 100%; border: none;">
+          <thead>
+            <tr>
+              <th style="padding: 0.75rem 1rem; position: sticky; top: 0; background: var(--surface); z-index: 1;">Time</th>
+              <th style="padding: 0.75rem 1rem; position: sticky; top: 0; background: var(--surface); z-index: 1;">Actor</th>
+              <th style="padding: 0.75rem 1rem; position: sticky; top: 0; background: var(--surface); z-index: 1;">Step</th>
+              <th style="padding: 0.75rem 1rem; position: sticky; top: 0; background: var(--surface); z-index: 1;">Action summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for event in detail.related_events %}
+              {% set is_trigger = event.event_id == detail.trigger_event.event_id %}
+              <tr style="background: {% if is_trigger %}var(--risk-bg){% elif event.actor_type.value == 'human' %}var(--human-bg){% else %}transparent{% endif %};">
+                <td class="mono" style="border-bottom: 1px solid var(--border); padding: 0.75rem 1rem; font-size: 0.75rem;">{{ event.timestamp.strftime("%H:%M:%S") }}</td>
+                <td style="border-bottom: 1px solid var(--border); padding: 0.75rem 1rem;"><span class="badge badge--{{ event.actor_type.value }}">{{ event.actor_type.value }}</span></td>
+                <td style="border-bottom: 1px solid var(--border); padding: 0.75rem 1rem;"><strong>{{ event.metadata.get("headline", event.process_step) }}</strong></td>
+                <td style="border-bottom: 1px solid var(--border); padding: 0.75rem 1rem;">{{ event.action_summary }}{% if is_trigger %} <strong style="color: var(--risk);">Trigger event</strong>{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="label" style="margin-bottom: 0.75rem;">Recommended next actions</div>
+      <ol class="plain-list" style="margin-top: 0.5rem;">
+        {% for action in evidence_pack.recommended_actions %}
+          <li><strong>{{ action }}</strong></li>
+        {% endfor %}
+      </ol>
+    </div>
+  </section>
+{% endblock %}

@@ -1,0 +1,2 @@
+"""UI routes and templates."""
+

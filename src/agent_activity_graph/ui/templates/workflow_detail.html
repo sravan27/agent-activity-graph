@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% block title %}Agent Activity Graph | {{ workflow.workflow_id }}{% endblock %}
+{% block content %}
+  {% set latest_incident = incidents[0] if incidents else None %}
+  <section class="panel" style="border: 1px solid var(--border-strong); border-top: 4px solid var(--accent);">
+    <div class="hero-split">
+      <div>
+        <div class="label">Workflow detail</div>
+        <h2 class="section-title" style="margin-top: 0.5rem;">{{ workflow.business_object_id }} <span style="font-weight: 400; color: var(--text-muted);">/</span> <span class="mono">{{ workflow.workflow_id }}</span></h2>
+        <p>{{ replay.summary_headline }}</p>
+        <div class="toolbar" style="margin-top: 1.5rem;">
+          <a class="button-link button-link--primary" href="/workflows/{{ workflow.workflow_id }}/replay">Open replay timeline</a>
+          {% if incidents %}
+            <a class="button-link" href="/incidents/{{ incidents[0].incident_id }}" style="border-color: var(--risk); color: var(--risk);">Open latest incident</a>
+          {% endif %}
+        </div>
+      </div>
+      <div class="signal-grid">
+        <div class="signal-card signal-card--policy" style="display: flex; flex-direction: column; justify-content: center;">
+          <div class="eyebrow">Current state</div>
+          <div><strong style="display: inline-block;"><span class="badge badge--{{ workflow.status }}">{{ workflow.status.replace("_", " ") }}</span></strong></div>
+          <p style="margin-top: 0.75rem;">{{ replay.policy_story }}</p>
+        </div>
+        <div class="signal-card {% if latest_incident %}signal-card--risk{% else %}signal-card--policy{% endif %}">
+          <div class="eyebrow" {% if latest_incident %}style="color: var(--risk);"{% endif %}>Next review</div>
+          {% if latest_incident %}
+            <strong>{{ latest_incident.recommended_next_action }}</strong>
+            <p>{{ latest_incident.title }}</p>
+          {% else %}
+            <strong>No incident follow-up is open for this run.</strong>
+            <p>{{ replay.business_consequence or "Replay remains the step-level record if the workflow needs later review." }}</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="summary-bar" style="margin-top: 2rem; border-color: var(--border-strong);">
+      <div class="summary-box">
+        <div class="label">Events</div>
+        <div class="value mono">{{ workflow.event_count }}</div>
+      </div>
+      <div class="summary-box">
+        <div class="label">Incidents</div>
+        <div class="value mono">{{ workflow.incident_count }}</div>
+      </div>
+      <div class="summary-box">
+        <div class="label">Actor handoffs</div>
+        <div class="value mono">{{ replay.actor_handoff_count }}</div>
+      </div>
+      <div class="summary-box">
+        <div class="label">Last policy</div>
+        <div class="value" style="margin-top: 0.5rem;">
+          {% if workflow.last_policy_status %}
+            <span class="badge badge--{{ workflow.last_policy_status }}">{{ workflow.last_policy_status.replace("_", " ") }}</span>
+          {% else %}
+            <span class="mono" style="font-size: 1rem; color: var(--text-muted);">n/a</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid grid--2" style="margin-top: 1.5rem;">
+    <div class="panel">
+      <div class="label">Operational context</div>
+      <div class="fact-grid" style="margin-top: 1rem;">
+        <div class="fact">
+          <strong>Vendor</strong>
+          <p>{{ workflow_context.vendor_name or "Unknown vendor" }}</p>
+        </div>
+        <div class="fact">
+          <strong>Invoice amount</strong>
+          <p class="mono">
+            {% if workflow_context.invoice_amount %}
+              {{ workflow_context.currency }} {{ "{:,.2f}".format(workflow_context.invoice_amount) }}
+            {% else %}
+              n/a
+            {% endif %}
+          </p>
+        </div>
+        <div class="fact">
+          <strong>Due date</strong>
+          <p class="mono">{{ workflow_context.invoice_due_date or "n/a" }}</p>
+        </div>
+        <div class="fact">
+          <strong>Payment cut-off</strong>
+          <p class="mono">{{ workflow_context.payment_batch_cutoff or "n/a" }}</p>
+        </div>
+        <div class="fact">
+          <strong>Cost center</strong>
+          <p class="mono">{{ workflow_context.cost_center or "n/a" }}</p>
+        </div>
+        <div class="fact">
+          <strong>Payment terms</strong>
+          <p>{{ workflow_context.payment_terms or "n/a" }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="label">Run posture</div>
+      <div class="signal-grid" style="margin-top: 1rem;">
+        <div class="signal-card signal-card--policy">
+          <div class="eyebrow" style="color: var(--policy);">Policy decision</div>
+          <strong style="font-size: 1rem;">{{ replay.policy_story }}</strong>
+          <p>Recorded on the same run as the actions it allowed, blocked, or escalated.</p>
+        </div>
+        <div class="signal-card signal-card--risk">
+          <div class="eyebrow" style="color: var(--risk);">Operational impact</div>
+          <strong style="font-size: 1rem;">{{ replay.business_consequence or "The workflow outcome directly affected payment timing and control posture." }}</strong>
+          <p>{% if latest_incident %}{{ latest_incident.explanation }}{% else %}The run can be reviewed without leaving the evidence trail.{% endif %}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid grid--2" style="margin-top: 1.5rem;">
+    <div class="panel">
+      <div class="label">Key moments</div>
+      <div class="timeline" style="margin-top: 1.5rem;">
+        {% for highlight in replay.highlights %}
+          <div class="timeline-card timeline-card--{{ 'blocked_action' if highlight.label == 'Blocked path' else 'human_intervention' if highlight.label == 'Human intervention' else 'policy_evaluation' if highlight.label == 'Policy gate' else 'agent_action' if highlight.label == 'Agent action' else 'system_update' }}">
+            <div class="card-header">
+              <h3>{{ highlight.label }}</h3>
+              <span class="badge badge--{{ highlight.severity }}">{{ highlight.severity }}</span>
+            </div>
+            <div class="card-body">
+              <p style="margin: 0;">{{ highlight.detail }}</p>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="panel">
+      <div class="label">Incident follow-up</div>
+      {% if latest_incident %}
+        <div class="timeline" style="margin-top: 1.5rem;">
+          {% for incident in incidents %}
+            <a class="incident-card" href="/incidents/{{ incident.incident_id }}" style="display: block; border-left: 4px solid var(--risk);">
+              <div class="card-header">
+                <h4>{{ incident.title }}</h4>
+                <span class="badge badge--{{ incident.severity }}">{{ incident.severity }}</span>
+              </div>
+              <div class="card-body">
+                <p style="color: var(--text-main); margin-bottom: 0.75rem;">{{ incident.explanation }}</p>
+                <div class="helper"><strong>Next action:</strong> {{ incident.recommended_next_action }}</div>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="signal-card signal-card--policy" style="margin-top: 1.5rem;">
+          <div class="eyebrow">Follow-up</div>
+          <strong style="font-size: 1rem;">No incident was generated for this workflow run.</strong>
+          <p>The replay and chronology remain the operational record if the run needs later review.</p>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="grid grid--2" style="margin-top: 1.5rem;">
+    <div class="panel">
+      <div class="label">Evidence graph</div>
+      <p style="margin-bottom: 1.5rem;">
+        Ordered view of the same run. Use it to inspect step order, authority changes, and system touchpoints without leaving the workflow record.
+      </p>
+      <div class="graph-lane">
+        {% for node in graph.nodes %}
+          <div class="graph-node">
+            <div class="card-header">
+              <strong style="color: var(--text-main);">{{ node.process_step }}</strong>
+              <span class="badge badge--{{ node.policy_status }}">{{ node.policy_status.replace("_", " ") }}</span>
+            </div>
+            <div class="card-body">
+              <p style="margin: 0 0 0.5rem 0; font-weight: 500;">{{ node.actor_name }} <span style="color: var(--text-muted); font-weight: 400;">·</span> {{ node.action_type }}</p>
+              <div class="helper">{{ node.timestamp.strftime("%Y-%m-%d %H:%M:%S UTC") }}</div>
+              {% if node.target_system %}
+                <div class="helper">System touched: {{ node.target_system }}</div>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="footer-note">
+        Actor transitions: <strong>{{ graph.actor_transitions }}</strong> · Systems touched:
+        <strong>{{ graph.systems_touched | join(", ") }}</strong>
+      </div>
+    </div>
+    <div class="panel" style="overflow-x: auto;">
+      <div class="label">Run chronology</div>
+      <table style="margin-top: 1rem; min-width: 600px;">
+        <thead>
+          <tr>
+            <th style="width: 3rem;">#</th>
+            <th>Step</th>
+            <th>Actor</th>
+            <th>Policy</th>
+            <th>Outcome</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for event in events %}
+            <tr>
+              <td class="mono" style="color: var(--text-muted);">{{ "%02d"|format(loop.index) }}</td>
+              <td>
+                <strong style="color: var(--text-main);">{{ event.process_step }}</strong>
+                <div class="helper">{{ event.metadata.get("headline", event.action_summary) }}</div>
+              </td>
+              <td>{{ event.actor_name }}</td>
+              <td><span class="badge badge--{{ event.policy_status.value }}">{{ event.policy_status.value.replace("_", " ") }}</span></td>
+              <td>
+                {% if event.outcome_status.value == "success" %}
+                  <span style="color: var(--ok); font-weight: 500;">Success</span>
+                {% elif event.outcome_status.value == "failed" %}
+                  <span style="color: var(--risk); font-weight: 500;">Failed</span>
+                {% else %}
+                  {{ event.outcome_status.value }}
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

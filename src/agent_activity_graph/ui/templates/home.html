@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Agent Activity Graph | Thesis{% endblock %}
+{% block content %}
+  <section class="hero">
+    <div class="label">Reference Product</div>
+    <h2>Enterprises need a runtime truth layer for agents inside business workflows.</h2>
+    <p>
+      Agent Activity Graph is a compact reference implementation for the missing evidence layer:
+      what the agent did, when it did it, under whose authority, in which process step, against
+      which systems, and whether policy or humans altered the path.
+    </p>
+    <p>
+      It is intentionally narrow. One invoice approval workflow. One local database. One policy
+      engine. One replay surface. The point is not product breadth. The point is proving the layer.
+    </p>
+  </section>
+
+  <section class="grid grid--3">
+    <div class="metric">
+      <div class="label">Workflow Runs</div>
+      <div class="value">{{ workflow_count }}</div>
+      <div class="helper">Seeded workflow instances currently recorded.</div>
+    </div>
+    <div class="metric">
+      <div class="label">Evidence Incidents</div>
+      <div class="value">{{ incident_count }}</div>
+      <div class="helper">Escalations, blocked actions, and risky transitions.</div>
+    </div>
+    <div class="metric">
+      <div class="label">Policy Rules</div>
+      <div class="value">{{ policy_rule_count }}</div>
+      <div class="helper">Local rules evaluated for every ingested event.</div>
+    </div>
+  </section>
+
+  <section class="grid grid--2" style="margin-top: 1rem;">
+    <div class="panel">
+      <div class="label">What This Proves</div>
+      <div class="stack" style="margin-top: 0.8rem;">
+        <div class="callout">
+          AI workflow systems are incomplete when they stop at orchestration and do not preserve
+          runtime evidence as a first-class object.
+        </div>
+        <div class="callout">
+          Policy cannot be a hidden branch in agent code. It needs an auditable decision record
+          with violated rules, explanations, and recommended next action.
+        </div>
+        <div class="callout">
+          Replay matters because debugging an agentic process requires the exact sequence of
+          machine and human actions, not just a final decision.
+        </div>
+        <div class="callout">
+          An exportable evidence pack makes the runtime trace legible to engineering, governance,
+          and process owners without changing the underlying storage model.
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="label">Current Scenario</div>
+      <p>
+        The demo stays on a single enterprise workflow: invoice approval with agent participation.
+        The seeded runs include a normal path, a policy escalation that ends with human approval,
+        and a blocked attempt followed by human rejection and manual hold.
+      </p>
+      <p class="helper">
+        The signature surface is replay: agent step, policy gate, authority handoff, business consequence, final outcome.
+      </p>
+      <div class="footer-note">Run <code>make seed</code> if the workflow list is empty.</div>
+    </div>
+  </section>
+
+  <section class="grid grid--2" style="margin-top: 1rem;">
+    <div class="panel">
+      <div class="label">Recent Workflows</div>
+      {% if recent_workflows %}
+        <div class="row-list" style="margin-top: 0.8rem;">
+          {% for workflow in recent_workflows %}
+            <a class="row" href="/workflows/{{ workflow.workflow_id }}">
+              <div>
+                <strong>{{ workflow.business_object_id }}</strong>
+                <div class="helper">{{ workflow.workflow_name }}</div>
+              </div>
+              <div>
+                <span class="badge badge--{{ workflow.status }}">{{ workflow.status.replace("_", " ") }}</span>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>No workflow evidence yet.</p>
+      {% endif %}
+    </div>
+    <div class="panel">
+      <div class="label">Recent Incidents</div>
+      {% if recent_incidents %}
+        <div class="row-list" style="margin-top: 0.8rem;">
+          {% for incident in recent_incidents %}
+            <a class="row" href="/incidents/{{ incident.incident_id }}">
+              <div>
+                <strong>{{ incident.title }}</strong>
+                <div class="helper">{{ incident.workflow_id }}</div>
+              </div>
+              <div>
+                <span class="badge badge--{{ incident.severity }}">{{ incident.severity }}</span>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>No policy incidents recorded.</p>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

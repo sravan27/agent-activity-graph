@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Agent Activity Graph | Replay {{ workflow.workflow_id }}{% endblock %}
+{% block content %}
+  <section class="panel" style="border: 1px solid var(--border-strong); border-top: 4px solid var(--accent);">
+    <div class="hero-split">
+      <div>
+        <div class="label">Replay timeline</div>
+        <h2 class="section-title" style="font-size: 1.95rem; margin-top: 0.5rem;">{{ workflow.business_object_id }} replay</h2>
+        <p>{{ replay.summary_headline }}</p>
+        <div class="toolbar" style="margin-top: 1.5rem;">
+          <a class="button-link" href="/workflows/{{ workflow.workflow_id }}">Back to workflow detail</a>
+        </div>
+      </div>
+      <div class="signal-grid">
+        <div class="signal-card signal-card--policy">
+          <div class="eyebrow" style="color: var(--policy);">Policy story</div>
+          <strong>{{ replay.policy_story }}</strong>
+          <p>Control decisions stay visible in the same trace as the actions they shaped.</p>
+        </div>
+        {% if replay.business_consequence %}
+          <div class="signal-card signal-card--risk">
+            <div class="eyebrow" style="color: var(--risk);">Business consequence</div>
+            <strong>{{ replay.business_consequence }}</strong>
+            <p>This keeps the replay tied to operational impact, not only technical behavior.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="summary-bar" style="margin-top: 2rem; border-color: var(--border-strong);">
+      <div class="summary-box">
+        <div class="label">Escalations</div>
+        <div class="value mono">{{ replay.escalation_count }}</div>
+      </div>
+      <div class="summary-box">
+        <div class="label">Blocked actions</div>
+        <div class="value mono">{{ replay.blocked_count }}</div>
+      </div>
+      <div class="summary-box">
+        <div class="label">Human interventions</div>
+        <div class="value mono">{{ replay.human_intervention_count }}</div>
+      </div>
+      <div class="summary-box">
+        <div class="label">Actor handoffs</div>
+        <div class="value mono">{{ replay.actor_handoff_count }}</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid grid--2" style="margin-top: 1.5rem;">
+    <div class="panel">
+      <div class="label">Control points</div>
+      <div class="timeline" style="margin-top: 1.5rem;">
+        {% for highlight in replay.highlights %}
+          <div class="timeline-card timeline-card--{{ 'blocked_action' if highlight.label == 'Blocked path' else 'human_intervention' if highlight.label == 'Human intervention' else 'policy_evaluation' if highlight.label == 'Policy gate' else 'agent_action' if highlight.label == 'Agent action' else 'system_update' }}">
+            <div class="card-header">
+              <h3>{{ highlight.label }}</h3>
+              <span class="badge badge--{{ highlight.severity }}">{{ highlight.severity }}</span>
+            </div>
+            <div class="card-body">
+              <p style="margin: 0;">{{ highlight.detail }}</p>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="panel">
+      <div class="label">Workflow context</div>
+      <div class="fact-grid" style="margin-top: 1rem;">
+        <div class="fact">
+          <strong>Vendor</strong>
+          <p>{{ workflow_context.vendor_name or "Unknown vendor" }}</p>
+        </div>
+        <div class="fact">
+          <strong>Invoice amount</strong>
+          <p class="mono">
+            {% if workflow_context.invoice_amount %}
+              {{ workflow_context.currency }} {{ "{:,.2f}".format(workflow_context.invoice_amount) }}
+            {% else %}
+              n/a
+            {% endif %}
+          </p>
+        </div>
+        <div class="fact">
+          <strong>Due date</strong>
+          <p class="mono">{{ workflow_context.invoice_due_date or "n/a" }}</p>
+        </div>
+        <div class="fact">
+          <strong>Payment cut-off</strong>
+          <p class="mono">{{ workflow_context.payment_batch_cutoff or "n/a" }}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-top: 1.5rem;">
+    <div class="label">Full evidence replay</div>
+    <div class="timeline" style="margin-top: 1.5rem; gap: 1rem;">
+      {% for entry in replay.entries %}
+        <div class="timeline-card timeline-card--{{ entry.event_kind }}" style="padding-top: 1rem; padding-bottom: 1rem;">
+          <div class="card-header">
+            <div>
+              <h3><span class="mono" style="color: var(--text-muted); margin-right: 0.5rem;">{{ "%02d"|format(entry.sequence_number) }}</span> {{ entry.headline or entry.process_step }}</h3>
+              <div class="helper">{{ entry.timestamp.strftime("%Y-%m-%d %H:%M:%S UTC") }}</div>
+            </div>
+            <div class="stack" style="justify-items: end;">
+              <span class="badge badge--{{ entry.actor_type }}">{{ entry.actor_type }}</span>
+              <span class="badge badge--{{ entry.policy_status }}">{{ entry.policy_status.replace("_", " ") }}</span>
+            </div>
+          </div>
+          <div class="card-body">
+            {% if entry.action_summary != (entry.headline or entry.process_step) %}
+              <p style="font-size: 1rem; color: var(--text-main); font-weight: 600; margin: 0.5rem 0 0;">{{ entry.action_summary }}</p>
+            {% endif %}
+            <div class="facts-inline">
+              <span><strong>Actor:</strong> {{ entry.actor_name }}</span>
+              {% if entry.permission_scope %}<span><strong>Scope:</strong> {{ entry.permission_scope }}</span>{% endif %}
+              {% if entry.target_system %}<span><strong>System:</strong> {{ entry.target_system }}</span>{% endif %}
+              {% if entry.tool_name %}<span><strong>Tool:</strong> {{ entry.tool_name }}</span>{% endif %}
+            </div>
+
+            {% if entry.why_it_mattered %}
+              <p class="helper" style="margin-top: 0.75rem; color: var(--text-main);">{{ entry.why_it_mattered }}</p>
+            {% endif %}
+
+            {% if entry.policy_explanation or entry.business_consequence or (entry.recommended_next_action and entry.policy_status != 'allowed') or entry.transition_label %}
+              <div class="compact-stack">
+                {% if entry.policy_explanation %}
+                  <div class="compact-line"><strong>Policy verdict:</strong> {{ entry.policy_explanation }}</div>
+                {% endif %}
+                {% if entry.business_consequence %}
+                  <div class="compact-line"><strong>Business consequence:</strong> {{ entry.business_consequence }}</div>
+                {% endif %}
+                {% if entry.recommended_next_action and entry.policy_status != 'allowed' %}
+                  <div class="compact-line"><strong>Recommended next action:</strong> {{ entry.recommended_next_action }}</div>
+                {% endif %}
+                {% if entry.transition_label %}
+                  <div class="compact-line"><strong>Actor handoff:</strong> {{ entry.transition_label }}</div>
+                {% endif %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Agent Activity Graph | Workflows{% endblock %}
+{% block content %}
+  <section class="panel">
+    <div class="label">Workflow Inventory</div>
+    <h2 class="section-title">Invoice approval runs with runtime evidence.</h2>
+    <p>
+      Each row is a workflow instance. The interesting columns are not volume metrics; they are
+      evidence quality signals: final status, incident count, and the last known policy posture.
+    </p>
+  </section>
+
+  <section class="panel" style="margin-top: 1rem;">
+    {% if workflows %}
+      <table>
+        <thead>
+          <tr>
+            <th>Workflow</th>
+            <th>Business Object</th>
+            <th>Status</th>
+            <th>Events</th>
+            <th>Incidents</th>
+            <th>Last Policy</th>
+            <th>Last Event</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for workflow in workflows %}
+            <tr>
+              <td>
+                <a href="/workflows/{{ workflow.workflow_id }}"><strong>{{ workflow.workflow_id }}</strong></a>
+                <div class="helper">{{ workflow.workflow_name }}</div>
+              </td>
+              <td>{{ workflow.business_object_id }}</td>
+              <td><span class="badge badge--{{ workflow.status }}">{{ workflow.status.replace("_", " ") }}</span></td>
+              <td>{{ workflow.event_count }}</td>
+              <td>{{ workflow.incident_count }}</td>
+              <td>
+                {% if workflow.last_policy_status %}
+                  <span class="badge badge--{{ workflow.last_policy_status }}">{{ workflow.last_policy_status.replace("_", " ") }}</span>
+                {% else %}
+                  <span class="helper">n/a</span>
+                {% endif %}
+              </td>
+              <td>{{ workflow.last_event_at.strftime("%Y-%m-%d %H:%M UTC") }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No workflow runs have been recorded yet. Seed the demo data to populate the evidence layer.</p>
+    {% endif %}
+  </section>
+{% endblock %}
+
