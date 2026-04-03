@@ -11,7 +11,7 @@
         <div class="toolbar" style="margin-top: 1.5rem;">
           <a class="button-link button-link--primary" href="/workflows/{{ workflow.workflow_id }}/replay">Open replay timeline</a>
           {% if incidents %}
-            <a class="button-link" href="/incidents/{{ incidents[0].incident_id }}" style="border-color: var(--risk); color: var(--risk);">Open latest incident</a>
+            <a class="button-link" href="/incidents/{{ incidents[0].incident_id }}" style="border-color: var(--risk); color: var(--risk);">Open incident record</a>
           {% endif %}
         </div>
       </div>
@@ -22,7 +22,7 @@
           <p style="margin-top: 0.75rem;">{{ replay.policy_story }}</p>
         </div>
         <div class="signal-card {% if latest_incident %}signal-card--risk{% else %}signal-card--policy{% endif %}">
-          <div class="eyebrow" {% if latest_incident %}style="color: var(--risk);"{% endif %}>Next review</div>
+          <div class="eyebrow" {% if latest_incident %}style="color: var(--risk);"{% endif %}>Immediate next action</div>
           {% if latest_incident %}
             <strong>{{ latest_incident.recommended_next_action }}</strong>
             <p>{{ latest_incident.title }}</p>
@@ -131,21 +131,22 @@
       </div>
     </div>
     <div class="panel">
-      <div class="label">Incident follow-up</div>
+      <div class="label">Incident record</div>
       {% if latest_incident %}
-        <div class="timeline" style="margin-top: 1.5rem;">
-          {% for incident in incidents %}
-            <a class="incident-card" href="/incidents/{{ incident.incident_id }}" style="display: block; border-left: 4px solid var(--risk);">
-              <div class="card-header">
-                <h4>{{ incident.title }}</h4>
-                <span class="badge badge--{{ incident.severity }}">{{ incident.severity }}</span>
-              </div>
-              <div class="card-body">
-                <p style="color: var(--text-main); margin-bottom: 0.75rem;">{{ incident.explanation }}</p>
-                <div class="helper"><strong>Next action:</strong> {{ incident.recommended_next_action }}</div>
-              </div>
-            </a>
-          {% endfor %}
+        <div style="margin-top: 1.5rem;">
+          <a class="incident-card" href="/incidents/{{ latest_incident.incident_id }}" style="display: block; border-left: 4px solid var(--risk);">
+            <div class="card-header">
+              <h4>{{ latest_incident.title }}</h4>
+              <span class="badge badge--{{ latest_incident.severity }}">{{ latest_incident.severity }}</span>
+            </div>
+            <div class="card-body">
+              <p style="color: var(--text-main); margin-bottom: 0.75rem;">{{ latest_incident.explanation }}</p>
+              <div class="helper"><strong>Next action:</strong> {{ latest_incident.recommended_next_action }}</div>
+            </div>
+          </a>
+          {% if incidents|length > 1 %}
+            <div class="footer-note">{{ incidents|length - 1 }} earlier incident{% if incidents|length - 1 != 1 %}s{% endif %} remain attached to this workflow.</div>
+          {% endif %}
         </div>
       {% else %}
         <div class="signal-card signal-card--policy" style="margin-top: 1.5rem;">

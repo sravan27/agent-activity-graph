@@ -49,8 +49,8 @@ def test_workflow_detail_reads_as_operational_surface(tmp_path):
     try:
         response = client.get("/workflows/wf-invoice-3001")
         assert response.status_code == 200
-        assert "Next review" in response.text
-        assert "Incident follow-up" in response.text
+        assert "Immediate next action" in response.text
+        assert "Incident record" in response.text
         assert "Run chronology" in response.text
     finally:
         client.close()
