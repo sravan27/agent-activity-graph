@@ -10,6 +10,8 @@ This is not here to simulate a complete AP product. It is here because invoice a
 - policy gating
 - escalation
 - blocked behavior
+- delegated authority
+- review case creation
 - human intervention
 - final business outcome
 
@@ -26,6 +28,8 @@ The workflow is modeled as a sequence of evidence-bearing steps:
 7. final outcome
 
 The policy gate is intentionally explicit. It is the clearest way to show that orchestration and control are not the same thing.
+
+The review case is also explicit. Once policy blocks or escalates an action, the run leaves the autonomous lane and becomes a human review record.
 
 ## Seeded Runs
 
@@ -57,6 +61,7 @@ What it proves:
 
 - policy can redirect the workflow without erasing the original agent work
 - human approval appears as a clear authority handoff
+- the review case stays attached to the same runtime chronology
 - replay can connect control logic to business consequence
 
 Concrete consequence:
@@ -77,8 +82,8 @@ What it proves:
 - the evidence layer captures policy breach attempts, not just happy-path outcomes
 - blocked actions become explicit incidents
 - a human can close the run with a visible, reviewable intervention
+- the final record can point back to trace provenance and evidence hashes instead of relying on presentation alone
 
 Concrete consequence:
 
 - the invoice is delayed by at least one payment cycle and now carries policy breach review overhead
-

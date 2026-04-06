@@ -16,12 +16,15 @@ from agent_activity_graph.policy.evaluator import PolicyEvaluator
 from agent_activity_graph.replay.evidence_pack import build_evidence_pack
 from agent_activity_graph.replay.incident import build_incident_detail
 from agent_activity_graph.replay.timeline import build_replay_timeline
+from agent_activity_graph.sdk.trace_adapter import map_trace_to_workflow_events
 from agent_activity_graph.sdk.events import (
     EvidencePack,
     EventIngestionResponse,
     IncidentDetail,
     IncidentSummary,
     ReplayTimeline,
+    TraceIngestionRequest,
+    TraceIngestionResponse,
     WorkflowDetailResponse,
     WorkflowEvent,
     WorkflowGraphSnapshot,
@@ -43,6 +46,36 @@ def post_event(event: WorkflowEvent, session: Session = Depends(get_session)) ->
         return ingest_event(session, event, evaluator=policy_evaluator)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.post("/traces/openinference", response_model=TraceIngestionResponse, status_code=201)
+def post_openinference_trace(
+    request: TraceIngestionRequest,
+    session: Session = Depends(get_session),
+) -> TraceIngestionResponse:
+    incident_ids: list[str] = []
+    event_ids: list[str] = []
+    try:
+        for event in map_trace_to_workflow_events(request):
+            result = ingest_event(
+                session,
+                event,
+                evaluator=policy_evaluator,
+                preserve_event_policy=True,
+            )
+            event_ids.append(result.event.event_id)
+            if result.incident_id and result.incident_id not in incident_ids:
+                incident_ids.append(result.incident_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    return TraceIngestionResponse(
+        workflow_id=request.workflow.workflow_id,
+        source=request.source,
+        ingested_events=len(event_ids),
+        incident_ids=incident_ids,
+        event_ids=event_ids,
+    )
 
 
 @router.get("/workflows", response_model=list[WorkflowSummary])

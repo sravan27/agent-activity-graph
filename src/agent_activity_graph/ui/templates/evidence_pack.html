@@ -37,6 +37,12 @@
         <div class="label">Final outcome</div>
         <div class="value" style="margin-top: 0.5rem;"><span class="badge badge--{{ evidence_pack.final_outcome }}">{{ evidence_pack.final_outcome.replace("_", " ") }}</span></div>
       </div>
+      <div class="summary-box">
+        <div class="label">Evidence status</div>
+        <div class="value" style="margin-top: 0.5rem;">
+          <span class="badge badge--{{ 'completed' if evidence_pack.evidence_status == 'verified' else 'blocked' if evidence_pack.evidence_status == 'integrity_warning' else 'escalated' }}">{{ evidence_pack.evidence_status.replace("_", " ") }}</span>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -57,10 +63,13 @@
           <p class="mono">{{ evidence_pack.chronology | length }}</p>
         </div>
         <div class="fact">
-          <strong>Source</strong>
-          <p>Stored workflow events and incident metadata.</p>
+          <strong>Review case</strong>
+          <p class="mono">{{ evidence_pack.review_case_id or "n/a" }}</p>
         </div>
       </div>
+      {% if evidence_pack.source_trace_refs %}
+        <div class="footer-note">Source traces: <span class="mono">{{ evidence_pack.source_trace_refs | join(", ") }}</span></div>
+      {% endif %}
     </div>
     <div class="panel panel--quiet">
       <div class="label">Business consequence</div>
@@ -72,6 +81,17 @@
       </div>
     </div>
   </section>
+
+  {% if evidence_pack.evidence_issues %}
+    <section class="panel panel--quiet" style="margin-top: 1.5rem;">
+      <div class="label">Evidence notes</div>
+      <ul class="plain-list" style="margin-top: 1rem;">
+        {% for issue in evidence_pack.evidence_issues %}
+          <li>{{ issue }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
 
   <section class="grid grid--2" style="margin-top: 1.5rem;">
     <div class="panel panel--quiet">
@@ -119,6 +139,15 @@
             <td>
               <strong style="color: var(--text-main); font-size: 0.9375rem;">{{ entry.headline or entry.action_summary }}</strong>
               <div style="margin-top: 0.25rem;" class="helper">{{ entry.why_it_mattered }}</div>
+              {% if entry.review_case_id or entry.source_trace_ref or entry.evidence_hash %}
+                <div style="margin-top: 0.35rem;" class="helper mono">
+                  {% if entry.review_case_id %}{{ entry.review_case_id }}{% endif %}
+                  {% if entry.review_case_id and entry.source_trace_ref %} · {% endif %}
+                  {% if entry.source_trace_ref %}{{ entry.source_trace_ref }}{% endif %}
+                  {% if (entry.review_case_id or entry.source_trace_ref) and entry.evidence_hash %} · {% endif %}
+                  {% if entry.evidence_hash %}{{ entry.evidence_hash[:12] }}{% endif %}
+                </div>
+              {% endif %}
             </td>
             <td>{{ entry.actor_name }}</td>
             <td>{{ entry.policy_status.replace("_", " ") }}</td>

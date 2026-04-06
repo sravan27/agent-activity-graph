@@ -26,6 +26,9 @@
           {% if latest_incident %}
             <strong>{{ latest_incident.recommended_next_action }}</strong>
             <p>{{ latest_incident.title }}</p>
+            {% if replay.review_case_id %}
+              <div class="helper mono">Review case: {{ replay.review_case_id }}</div>
+            {% endif %}
           {% else %}
             <strong>No incident follow-up is open for this run.</strong>
             <p>{{ replay.business_consequence or "Replay remains the step-level record if the workflow needs later review." }}</p>
@@ -103,11 +106,23 @@
           <div class="eyebrow" style="color: var(--policy);">Policy decision</div>
           <strong style="font-size: 1rem;">{{ replay.policy_story }}</strong>
           <p>Recorded on the same run as the actions it allowed, blocked, or escalated.</p>
+          {% if replay.review_case_id %}
+            <div class="helper mono" style="margin-top: 0.75rem;">Review case: {{ replay.review_case_id }}</div>
+          {% endif %}
         </div>
         <div class="signal-card signal-card--risk">
           <div class="eyebrow" style="color: var(--risk);">Operational impact</div>
           <strong style="font-size: 1rem;">{{ replay.business_consequence or "The workflow outcome directly affected payment timing and control posture." }}</strong>
           <p>{% if latest_incident %}{{ latest_incident.explanation }}{% else %}The run can be reviewed without leaving the evidence trail.{% endif %}</p>
+          <div class="helper" style="margin-top: 0.75rem;">
+            Evidence status:
+            <strong style="color: {% if replay.evidence_status == 'verified' %}var(--ok){% elif replay.evidence_status == 'needs_enrichment' %}var(--warn){% else %}var(--risk){% endif %};">
+              {{ replay.evidence_status.replace("_", " ") }}
+            </strong>
+          </div>
+          {% if replay.evidence_issues %}
+            <div class="helper" style="margin-top: 0.5rem;">{{ replay.evidence_issues|length }} note{% if replay.evidence_issues|length != 1 %}s{% endif %} explain what still needs to be made explicit.</div>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -131,7 +146,7 @@
       </div>
     </div>
     <div class="panel">
-      <div class="label">Incident record</div>
+      <div class="label">Active review case</div>
       {% if latest_incident %}
         <div style="margin-top: 1.5rem;">
           <a class="incident-card" href="/incidents/{{ latest_incident.incident_id }}" style="display: block; border-left: 4px solid var(--risk);">
@@ -142,6 +157,9 @@
             <div class="card-body">
               <p style="color: var(--text-main); margin-bottom: 0.75rem;">{{ latest_incident.explanation }}</p>
               <div class="helper"><strong>Next action:</strong> {{ latest_incident.recommended_next_action }}</div>
+              {% if replay.review_case_id %}
+                <div class="helper mono" style="margin-top: 0.5rem;">{{ replay.review_case_id }}</div>
+              {% endif %}
             </div>
           </a>
           {% if incidents|length > 1 %}

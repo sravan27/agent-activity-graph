@@ -17,8 +17,11 @@ def test_evidence_pack_contains_incident_story(seeded_session):
     assert pack.workflow_id == "wf-invoice-3001"
     assert pack.business_object_id == "INV-3001"
     assert pack.business_consequence is not None
+    assert pack.review_case_id == "review-wf-invoice-3001"
+    assert pack.evidence_status == "verified"
     assert any(finding.label == "Incident trigger" for finding in pack.findings)
     assert any(entry.event_kind == "policy_evaluation" for entry in pack.chronology)
     assert "## Executive Summary" in markdown
+    assert "## Evidence Integrity Notes" not in markdown
     assert "## Recommended Actions" in markdown
     assert "INV-3001" in markdown

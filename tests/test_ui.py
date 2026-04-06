@@ -38,6 +38,7 @@ def test_replay_page_keeps_control_story_visible(tmp_path):
         assert "Control points" in response.text
         assert "Policy verdict" in response.text
         assert "Business consequence" in response.text
+        assert "Review case" in response.text
     finally:
         client.close()
         app.dependency_overrides.clear()
@@ -50,7 +51,7 @@ def test_workflow_detail_reads_as_operational_surface(tmp_path):
         response = client.get("/workflows/wf-invoice-3001")
         assert response.status_code == 200
         assert "Immediate next action" in response.text
-        assert "Incident record" in response.text
+        assert "Active review case" in response.text
         assert "Run chronology" in response.text
     finally:
         client.close()
@@ -80,6 +81,7 @@ def test_evidence_pack_avoids_theatrical_footer(tmp_path):
         assert "Record basis" in response.text
         assert "Chronology" in response.text
         assert "Next actions" in response.text
+        assert "Evidence status" in response.text
         assert "END OF EVIDENCE PACK" not in response.text
     finally:
         client.close()

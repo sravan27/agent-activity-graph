@@ -43,9 +43,13 @@ def build_evidence_pack(session, incident_id: str) -> EvidencePack:
         generated_at=utcnow(),
         audience=["Engineering lead", "AI governance lead", "Process owner"],
         executive_summary=f"{detail.replay.summary_headline} {detail.incident.explanation}",
+        review_case_id=detail.replay.review_case_id,
         risk_category=str(risk_category) if risk_category else None,
         business_consequence=detail.replay.business_consequence,
         final_outcome=detail.replay.final_outcome,
+        evidence_status=detail.replay.evidence_status,
+        evidence_issues=detail.replay.evidence_issues,
+        source_trace_refs=detail.replay.source_trace_refs,
         findings=findings,
         chronology=detail.replay.entries,
         recommended_actions=recommended_actions,
@@ -61,9 +65,14 @@ def render_evidence_pack_markdown(pack: EvidencePack) -> str:
         f"- Business object: `{pack.business_object_id}`",
         f"- Generated at: `{pack.generated_at.isoformat()}`",
         f"- Final outcome: `{pack.final_outcome}`",
+        f"- Evidence status: `{pack.evidence_status}`",
     ]
+    if pack.review_case_id:
+        lines.append(f"- Review case: `{pack.review_case_id}`")
     if pack.risk_category:
         lines.append(f"- Risk category: `{pack.risk_category}`")
+    if pack.source_trace_refs:
+        lines.append(f"- Source trace refs: `{', '.join(pack.source_trace_refs)}`")
     lines.extend(
         [
             "",
@@ -71,6 +80,11 @@ def render_evidence_pack_markdown(pack: EvidencePack) -> str:
             pack.executive_summary,
         ]
     )
+
+    if pack.evidence_issues:
+        lines.extend(["", "## Evidence Integrity Notes"])
+        for issue in pack.evidence_issues:
+            lines.append(f"- {issue}")
 
     if pack.business_consequence:
         lines.extend(
@@ -92,6 +106,17 @@ def render_evidence_pack_markdown(pack: EvidencePack) -> str:
             f"{entry.headline or entry.action_summary} | "
             f"actor={entry.actor_name} | policy={entry.policy_status} | outcome={entry.outcome_status}"
         )
+        evidence_bits = []
+        if entry.review_case_id:
+            evidence_bits.append(f"review_case={entry.review_case_id}")
+        if entry.source_trace_ref:
+            evidence_bits.append(f"trace={entry.source_trace_ref}")
+        if entry.source_system_ref:
+            evidence_bits.append(f"source={entry.source_system_ref}")
+        if entry.evidence_hash:
+            evidence_bits.append(f"evidence_hash={entry.evidence_hash[:12]}")
+        if evidence_bits:
+            lines.append(f"  {' | '.join(evidence_bits)}")
 
     lines.extend(["", "## Recommended Actions"])
     for action in pack.recommended_actions:

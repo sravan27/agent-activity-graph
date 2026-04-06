@@ -48,7 +48,17 @@ class WorkflowEvent(BaseModel):
     business_object_type: str
     business_object_id: str
     permission_scope: str | None = None
+    authority_subject: str | None = None
+    authority_delegation_source: str | None = None
     policy_status: PolicyStatus = PolicyStatus.ALLOWED
+    policy_rule_ids: list[str] = Field(default_factory=list)
+    review_case_id: str | None = None
+    review_state: str | None = None
+    human_decision_reason: str | None = None
+    due_by: datetime | None = None
+    source_trace_ref: str | None = None
+    source_system_ref: str | None = None
+    evidence_hash: str | None = None
     outcome_status: OutcomeStatus = OutcomeStatus.PENDING
     parent_event_id: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -74,6 +84,16 @@ class WorkflowEvent(BaseModel):
     @classmethod
     def normalize_timestamp(cls, value: datetime) -> datetime:
         return ensure_utc(value)
+
+    @field_validator("due_by")
+    @classmethod
+    def normalize_due_by(cls, value: datetime | None) -> datetime | None:
+        return ensure_utc(value) if value else None
+
+    @field_validator("policy_rule_ids")
+    @classmethod
+    def normalize_policy_rule_ids(cls, value: list[str]) -> list[str]:
+        return [item for item in dict.fromkeys(item.strip() for item in value if item and item.strip())]
 
     @field_validator("metadata")
     @classmethod
@@ -106,6 +126,49 @@ class EventIngestionResponse(BaseModel):
     event: WorkflowEvent
     policy: PolicyDecision
     incident_id: str | None = None
+
+
+class TraceSource(str, Enum):
+    GENERIC_OPENINFERENCE = "generic_openinference"
+    OPENAI_AGENTS = "openai_agents"
+    MCP = "mcp"
+
+
+class TraceWorkflowContext(BaseModel):
+    workflow_id: str
+    workflow_name: str
+    business_object_type: str
+    business_object_id: str
+    workflow_defaults: dict[str, Any] = Field(default_factory=dict)
+
+
+class TraceSpan(BaseModel):
+    span_id: str
+    parent_span_id: str | None = None
+    name: str
+    start_time: datetime
+    end_time: datetime | None = None
+    attributes: dict[str, Any] = Field(default_factory=dict)
+    status: str | None = None
+
+    @field_validator("start_time", "end_time")
+    @classmethod
+    def normalize_span_time(cls, value: datetime | None) -> datetime | None:
+        return ensure_utc(value) if value else None
+
+
+class TraceIngestionRequest(BaseModel):
+    source: TraceSource = TraceSource.GENERIC_OPENINFERENCE
+    workflow: TraceWorkflowContext
+    spans: list[TraceSpan]
+
+
+class TraceIngestionResponse(BaseModel):
+    workflow_id: str
+    source: TraceSource
+    ingested_events: int
+    incident_ids: list[str] = Field(default_factory=list)
+    event_ids: list[str] = Field(default_factory=list)
 
 
 class WorkflowSummary(BaseModel):
@@ -180,8 +243,18 @@ class ReplayEntry(BaseModel):
     headline: str | None = None
     event_kind: str = "activity"
     permission_scope: str | None = None
+    authority_subject: str | None = None
+    authority_delegation_source: str | None = None
     tool_name: str | None = None
     target_system: str | None = None
+    policy_rule_ids: list[str] = Field(default_factory=list)
+    review_case_id: str | None = None
+    review_state: str | None = None
+    human_decision_reason: str | None = None
+    due_by: datetime | None = None
+    source_trace_ref: str | None = None
+    source_system_ref: str | None = None
+    evidence_hash: str | None = None
     why_it_mattered: str | None = None
     policy_explanation: str | None = None
     recommended_next_action: str | None = None
@@ -211,6 +284,10 @@ class ReplayTimeline(BaseModel):
     blocked_count: int
     human_intervention_count: int
     actor_handoff_count: int
+    review_case_id: str | None = None
+    source_trace_refs: list[str] = Field(default_factory=list)
+    evidence_status: str = "verified"
+    evidence_issues: list[str] = Field(default_factory=list)
     highlights: list[ReplayHighlight] = Field(default_factory=list)
     entries: list[ReplayEntry]
 
@@ -239,9 +316,13 @@ class EvidencePack(BaseModel):
     generated_at: datetime
     audience: list[str] = Field(default_factory=list)
     executive_summary: str
+    review_case_id: str | None = None
     risk_category: str | None = None
     business_consequence: str | None = None
     final_outcome: str
+    evidence_status: str = "verified"
+    evidence_issues: list[str] = Field(default_factory=list)
+    source_trace_refs: list[str] = Field(default_factory=list)
     findings: list[ReplayHighlight] = Field(default_factory=list)
     chronology: list[ReplayEntry] = Field(default_factory=list)
     recommended_actions: list[str] = Field(default_factory=list)

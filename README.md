@@ -15,9 +15,13 @@ Far fewer can tell you the controlled runtime path that produced that outcome:
 
 Agent Activity Graph exists to make that gap impossible to miss.
 
-**Agent Activity Graph is a compact, local-first reference product for runtime evidence in agentic enterprise workflows.**
+**Agent Activity Graph is a compact, local-first reference product for runtime evidence and human review in policy-gated agent workflows.**
 
 It argues that orchestration alone is incomplete. Once agents touch real business processes, enterprises need a runtime truth layer, not just prompts, tool calls, or dashboards.
+
+The wedge is narrow on purpose:
+
+**Agent Activity Graph is the review system of record for blocked or escalated agent actions.**
 
 This repository proves that the missing layer can be demonstrated with a small, local-first, technically credible system:
 
@@ -54,12 +58,13 @@ Without a runtime evidence layer:
 
 ## What This Project Proves
 
-Agent Activity Graph proves four things:
+Agent Activity Graph proves five things:
 
 1. Policy can be preserved as runtime evidence, not hidden side-effect.
 2. Replay is a stronger debugging and governance surface than dashboards alone.
 3. Human intervention needs to appear in the same trace as agent activity.
-4. A local-first reference implementation is enough to make the category legible.
+4. The real product moment is the human review case created by a blocked or escalated action.
+5. A local-first reference implementation is enough to make the category legible.
 
 ## Ultra-Clear Quickstart
 
@@ -99,6 +104,31 @@ Run tests:
 ```bash
 make test
 ```
+
+Run the sample trace proof path:
+
+```bash
+make demo
+make run
+make ingest-trace
+```
+
+By default, `make ingest-trace` imports [`examples/traces/openai_agents_invoice_review.json`](examples/traces/openai_agents_invoice_review.json) into the running app.
+
+That fixture is public-source-derived rather than private demo data. It is adapted
+from current official OpenAI Agents tracing and approval patterns plus the MCP
+tools approval model.
+
+Run a real local approval-agent export for free:
+
+```bash
+make generate-local-trace
+make ingest-local-trace
+```
+
+This path uses a locally running Ollama model to execute the approval-review loop
+and writes [`examples/traces/ollama_local_invoice_review.json`](examples/traces/ollama_local_invoice_review.json).
+It is a real runtime-generated export, not a hand-authored fixture.
 
 Regenerate the preview assets used in this README:
 
@@ -151,6 +181,45 @@ A strong evaluator should come away with one conclusion:
 
 **yes, orchestration alone is missing a runtime evidence layer.**
 
+More specifically:
+
+**the missing surface is the review loop around policy-gated agent actions.**
+
+## 5-Minute Proof Path
+
+If you want to prove this is more than a seeded story:
+
+1. Start the app with `make demo` and `make run`.
+2. In another terminal, run `make ingest-trace`.
+3. Open the printed replay and incident URLs.
+4. Confirm the trace-derived run now shows:
+   - source trace reference
+   - explicit policy gate
+   - review case
+   - human decision
+   - evidence status
+
+This is the shortest path from “reference product” to “review layer sitting above a public-source-derived trace shaped by current agent runtime patterns.”
+
+## Public Trace Basis
+
+The default trace proof path is grounded in official public sources, not invented
+SDK terminology:
+
+- OpenAI Agents tracing docs:
+  [openai.github.io/openai-agents-python/tracing](https://openai.github.io/openai-agents-python/tracing/)
+- OpenAI Agents human-in-the-loop example:
+  [github.com/openai/openai-agents-python/.../human_in_the_loop.py](https://github.com/openai/openai-agents-python/blob/main/examples/agent_patterns/human_in_the_loop.py)
+- OpenAI Agents hosted MCP approval example:
+  [github.com/openai/openai-agents-python/.../on_approval.py](https://github.com/openai/openai-agents-python/blob/main/examples/hosted_mcp/on_approval.py)
+- MCP tools spec:
+  [modelcontextprotocol.io/specification/2025-06-18/server/tools](https://modelcontextprotocol.io/specification/2025-06-18/server/tools)
+
+The fixture itself is documented in [`examples/traces/README.md`](examples/traces/README.md).
+
+If you have Ollama running locally, the repo also supports a no-cost proof path
+that generates a fresh runtime export from an actual local approval agent.
+
 ## Demo Scenario
 
 The project uses exactly one scenario:
@@ -201,6 +270,24 @@ It is designed to make one workflow instance legible in seconds:
 
 The goal is not visual flourish. The goal is to reconstruct the workflow in a way engineering, governance, and process teams can all use.
 
+## Why This Is Not Another Trace Viewer
+
+Generic trace viewers already exist and are improving quickly.
+
+Agent Activity Graph is intentionally downstream of that layer.
+
+Its job is to answer a different question:
+
+- when an agent action is blocked or escalated, what is the business review record?
+
+That is why the core objects are not spans, dashboards, or eval charts. The core objects are:
+
+- policy decision
+- review case
+- incident
+- replay
+- exportable evidence pack
+
 ## Exportable Evidence Pack
 
 For every incident, the app can generate a local-first evidence pack with:
@@ -212,6 +299,37 @@ For every incident, the app can generate a local-first evidence pack with:
 - recommended actions
 
 It is intentionally static and printable. No SaaS flow, no external dependency, no fake platform wrapper.
+
+## What Counts As Review-Ready Evidence
+
+This repository is intentionally strict about the boundary between a useful trace and review-ready evidence.
+
+The strongest runs include:
+
+- source trace reference
+- explicit authority subject
+- authority delegation source
+- policy rule IDs
+- review case ID
+- human decision reason when a human resolves the case
+- chained evidence hashes across the stored event stream
+
+If a trace is missing some of those fields, Agent Activity Graph can still ingest it, replay it, and expose it for review. But the run is marked as `needs_enrichment` instead of pretending the record is already complete.
+
+That is deliberate. The product should under-claim, not over-claim.
+
+## Why One Workflow Is Still Enough
+
+The repository still stays inside one invoice approval workflow.
+
+That is not because the pattern only applies to AP. It is because the product question is broader than the scenario:
+
+- what happens when an agent action touches a controlled write path
+- policy intervenes
+- a human has to review the case
+- the final record has to be replayable and exportable later
+
+That same review pattern can sit above procurement exceptions, support write actions, operations changes, or security approvals. The repo does not add those scenarios yet because the current job is to prove the control loop, not to broaden the demo surface.
 
 ## Architecture
 
@@ -230,6 +348,8 @@ policy evaluation
     v
 SQLite evidence store
     |
+    +--> trace-to-workflow adapter (OpenInference / OpenAI Agents / MCP)
+    |
     +--> workflow summary
     +--> incident record
     +--> activity graph
@@ -238,6 +358,18 @@ SQLite evidence store
 ```
 
 The important design decision is that every surface is derived from the same stored evidence stream.
+
+The current repository also includes one narrow interoperability contract:
+
+- `POST /api/traces/openinference`
+
+There is also a local helper for it:
+
+```bash
+.venv/bin/python scripts/ingest_trace.py --file examples/traces/openai_agents_invoice_review.json
+```
+
+It maps OpenInference-style spans, including OpenAI Agents traces and MCP tool calls, into the same canonical workflow evidence model. The trace alone is not treated as sufficient. Authority, policy, and review annotations still have to become explicit before the run is accepted as business evidence.
 
 ## Repository Shape
 
@@ -267,6 +399,7 @@ Key modules:
 ## Useful Endpoints
 
 - `POST /api/events`
+- `POST /api/traces/openinference`
 - `GET /api/workflows`
 - `GET /api/workflows/{workflow_id}`
 - `GET /api/workflows/{workflow_id}/graph`
@@ -284,3 +417,27 @@ Short release-ready language lives in [`docs/release-summary.md`](docs/release-s
 - [`docs/thesis.md`](docs/thesis.md)
 - [`docs/architecture.md`](docs/architecture.md)
 - [`docs/demo-scenario.md`](docs/demo-scenario.md)
+
+## What Would Strengthen This Further
+
+The repo no longer depends on a purely hand-authored trace fixture. It now includes
+a public-source-derived proof path grounded in current OpenAI Agents and MCP patterns,
+plus a free local runtime-generated export path via Ollama.
+
+The next proof step is still a real export from an approval-like agent run.
+
+Best case:
+
+- a JSON export already shaped like [`TraceIngestionRequest`](/Users/sravansridhar/Documents/Agent-Activity-Graph/src/agent_activity_graph/sdk/events.py)
+
+Still workable:
+
+- raw span JSON plus:
+  - workflow step names
+  - business object ID
+  - policy decision point
+  - final human review decision
+  - delegated authority text
+
+That is not required to understand the repo anymore. It is just the next bar for
+proving the wedge against a live enterprise stack.

@@ -4,7 +4,12 @@ from collections.abc import Iterable
 
 import httpx
 
-from agent_activity_graph.sdk.events import EventIngestionResponse, WorkflowEvent
+from agent_activity_graph.sdk.events import (
+    EventIngestionResponse,
+    TraceIngestionRequest,
+    TraceIngestionResponse,
+    WorkflowEvent,
+)
 
 
 class AgentActivityGraphClient:
@@ -20,3 +25,11 @@ class AgentActivityGraphClient:
     def send_events(self, events: Iterable[WorkflowEvent]) -> list[EventIngestionResponse]:
         return [self.send_event(event) for event in events]
 
+    def send_openinference_trace(self, trace: TraceIngestionRequest) -> TraceIngestionResponse:
+        with httpx.Client(base_url=self.base_url, timeout=10.0) as client:
+            response = client.post(
+                "/api/traces/openinference",
+                json=trace.model_dump(mode="json"),
+            )
+            response.raise_for_status()
+            return TraceIngestionResponse.model_validate(response.json())

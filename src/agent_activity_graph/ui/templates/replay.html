@@ -89,7 +89,21 @@
           <strong>Payment cut-off</strong>
           <p class="mono">{{ workflow_context.payment_batch_cutoff or "n/a" }}</p>
         </div>
+        <div class="fact">
+          <strong>Review case</strong>
+          <p class="mono">{{ replay.review_case_id or "n/a" }}</p>
+        </div>
+        <div class="fact">
+          <strong>Evidence status</strong>
+          <p>{{ replay.evidence_status.replace("_", " ") }}</p>
+        </div>
       </div>
+      {% if replay.source_trace_refs %}
+        <div class="footer-note">Source traces: <span class="mono">{{ replay.source_trace_refs | join(", ") }}</span></div>
+      {% endif %}
+      {% if replay.evidence_issues %}
+        <div class="footer-note">{{ replay.evidence_issues|length }} evidence note{% if replay.evidence_issues|length != 1 %}s{% endif %}: this run is useful for review, but some authority or review fields still need enrichment.</div>
+      {% endif %}
     </div>
   </section>
 
@@ -119,11 +133,11 @@
               {% if entry.tool_name %}<span><strong>Tool:</strong> {{ entry.tool_name }}</span>{% endif %}
             </div>
 
-            {% if entry.why_it_mattered %}
+            {% if entry.why_it_mattered and (entry.policy_status != 'allowed' or entry.human_intervention or entry.event_kind == 'policy_evaluation' or loop.last) %}
               <p class="helper" style="margin-top: 0.75rem; color: var(--text-main);">{{ entry.why_it_mattered }}</p>
             {% endif %}
 
-            {% if entry.policy_explanation or entry.business_consequence or (entry.recommended_next_action and entry.policy_status != 'allowed') or entry.transition_label %}
+            {% if entry.policy_explanation or entry.business_consequence or (entry.recommended_next_action and entry.policy_status != 'allowed') or entry.transition_label or entry.authority_subject or entry.human_decision_reason or entry.review_case_id or entry.source_trace_ref or entry.evidence_hash %}
               <div class="compact-stack">
                 {% if entry.policy_explanation %}
                   <div class="compact-line"><strong>Policy verdict:</strong> {{ entry.policy_explanation }}</div>
@@ -131,11 +145,27 @@
                 {% if entry.business_consequence %}
                   <div class="compact-line"><strong>Business consequence:</strong> {{ entry.business_consequence }}</div>
                 {% endif %}
+                {% if entry.authority_subject %}
+                  <div class="compact-line"><strong>Authority:</strong> {{ entry.authority_subject }}</div>
+                {% endif %}
                 {% if entry.recommended_next_action and entry.policy_status != 'allowed' %}
                   <div class="compact-line"><strong>Recommended next action:</strong> {{ entry.recommended_next_action }}</div>
                 {% endif %}
+                {% if entry.human_decision_reason %}
+                  <div class="compact-line"><strong>Human decision:</strong> {{ entry.human_decision_reason }}</div>
+                {% endif %}
                 {% if entry.transition_label %}
                   <div class="compact-line"><strong>Actor handoff:</strong> {{ entry.transition_label }}</div>
+                {% endif %}
+                {% if entry.review_case_id or entry.source_trace_ref or entry.evidence_hash %}
+                  <div class="compact-line">
+                    <strong>Record:</strong>
+                    {% if entry.review_case_id %}case {{ entry.review_case_id }}{% endif %}
+                    {% if entry.review_case_id and (entry.source_trace_ref or entry.evidence_hash) %} · {% endif %}
+                    {% if entry.source_trace_ref %}trace {{ entry.source_trace_ref }}{% endif %}
+                    {% if entry.source_trace_ref and entry.evidence_hash %} · {% endif %}
+                    {% if entry.evidence_hash %}hash {{ entry.evidence_hash[:12] }}{% endif %}
+                  </div>
                 {% endif %}
               </div>
             {% endif %}

@@ -44,6 +44,14 @@
         <div class="label">Risk category</div>
         <div class="value" style="font-size: 1rem;">{{ evidence_pack.risk_category.replace("_", " ") if evidence_pack.risk_category else "n/a" }}</div>
       </div>
+      <div class="summary-box">
+        <div class="label">Review case</div>
+        <div class="value mono" style="font-size: 0.9375rem;">{{ evidence_pack.review_case_id or "n/a" }}</div>
+      </div>
+      <div class="summary-box">
+        <div class="label">Evidence status</div>
+        <div class="value" style="font-size: 1rem;">{{ evidence_pack.evidence_status.replace("_", " ") }}</div>
+      </div>
     </div>
   </section>
 
@@ -76,6 +84,10 @@
             <div class="fact">
               <strong>Outcome</strong>
               <p>{{ detail.trigger_event.outcome_status.value.replace("_", " ") }}</p>
+            </div>
+            <div class="fact">
+              <strong>Evidence hash</strong>
+              <p class="mono">{{ detail.trigger_event.evidence_hash[:12] if detail.trigger_event.evidence_hash else "n/a" }}</p>
             </div>
           </div>
         </div>

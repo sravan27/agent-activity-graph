@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime
+import hashlib
+import json
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -20,6 +22,7 @@ from agent_activity_graph.sdk.events import (
     OutcomeStatus,
     PolicyDecision,
     PolicyStatus,
+    RuleViolation,
     WorkflowEvent,
     WorkflowSummary,
 )
@@ -70,7 +73,17 @@ def map_event_record(record: EventRecord) -> WorkflowEvent:
         business_object_type=record.business_object_type,
         business_object_id=record.business_object_id,
         permission_scope=record.permission_scope,
+        authority_subject=record.authority_subject,
+        authority_delegation_source=record.authority_delegation_source,
         policy_status=record.policy_status,
+        policy_rule_ids=list(record.policy_rule_ids_json or []),
+        review_case_id=record.review_case_id,
+        review_state=record.review_state,
+        human_decision_reason=record.human_decision_reason,
+        due_by=ensure_utc(record.due_by) if record.due_by else None,
+        source_trace_ref=record.source_trace_ref,
+        source_system_ref=record.source_system_ref,
+        evidence_hash=record.evidence_hash,
         outcome_status=record.outcome_status,
         parent_event_id=record.parent_event_id,
         metadata=record.metadata_json or {},
@@ -109,6 +122,104 @@ def map_incident_record(record: IncidentRecord) -> IncidentSummary:
     )
 
 
+def _normalize_policy_payload(event: WorkflowEvent, decision: PolicyDecision) -> dict:
+    payload = decision.model_dump(mode="json")
+    payload["source"] = "preserved" if event.metadata.get("_policy", {}).get("source") == "preserved" else "evaluated"
+    return payload
+
+
+def _decision_from_preserved_event(event: WorkflowEvent) -> PolicyDecision:
+    payload = dict(event.metadata.get("_policy") or {})
+    violated = payload.get("violated_rules") or []
+    if violated:
+        violations = [RuleViolation.model_validate(item) for item in violated]
+    else:
+        violations = [
+            RuleViolation(
+                rule_id=rule_id,
+                rule_name=rule_id.replace("_", " ").title(),
+                decision=event.policy_status,
+                message=payload.get("explanation") or event.action_summary,
+                recommended_action=payload.get("recommended_next_action")
+                or "Review the mapped workflow evidence before continuing.",
+            )
+            for rule_id in event.policy_rule_ids
+        ]
+
+    return PolicyDecision(
+        decision=event.policy_status,
+        violated_rules=violations,
+        explanation=str(payload.get("explanation") or event.action_summary),
+        recommended_next_action=str(
+            payload.get("recommended_next_action")
+            or "Review the mapped workflow evidence before continuing."
+        ),
+    )
+
+
+def _serialize_hash_payload(event: WorkflowEvent, previous_hash: str | None) -> str:
+    metadata = dict(event.metadata)
+    metadata.pop("_evidence", None)
+    payload = event.model_dump(
+        mode="json",
+        exclude={"evidence_hash", "metadata"},
+    )
+    payload["metadata"] = metadata
+    payload["previous_evidence_hash"] = previous_hash
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+
+def _compute_evidence_hash(event: WorkflowEvent, previous_hash: str | None) -> str:
+    return hashlib.sha256(_serialize_hash_payload(event, previous_hash).encode("utf-8")).hexdigest()
+
+
+def _get_latest_event_record(session: Session, workflow_id: str) -> EventRecord | None:
+    return session.scalars(
+        select(EventRecord)
+        .where(EventRecord.workflow_id == workflow_id)
+        .order_by(EventRecord.timestamp.desc(), EventRecord.event_id.desc())
+        .limit(1)
+    ).first()
+
+
+def _decorate_evidence(session: Session, event: WorkflowEvent, decision: PolicyDecision) -> WorkflowEvent:
+    previous_record = _get_latest_event_record(session, event.workflow_id)
+    previous_hash = previous_record.evidence_hash if previous_record else None
+    evidence_hash = _compute_evidence_hash(event, previous_hash)
+    metadata = dict(event.metadata)
+    metadata["_policy"] = _normalize_policy_payload(event, decision)
+    metadata["_evidence"] = {
+        "hash": evidence_hash,
+        "previous_hash": previous_hash,
+        "status": "verified",
+    }
+    return event.model_copy(
+        update={
+            "policy_rule_ids": list(dict.fromkeys(event.policy_rule_ids)),
+            "evidence_hash": evidence_hash,
+            "metadata": metadata,
+        }
+    )
+
+
+def verify_evidence_chain(events: list[WorkflowEvent]) -> list[str]:
+    issues: list[str] = []
+    previous_hash: str | None = None
+    for event in events:
+        evidence_payload = dict(event.metadata.get("_evidence") or {})
+        recorded_previous_hash = evidence_payload.get("previous_hash")
+        if recorded_previous_hash != previous_hash:
+            issues.append(
+                f"{event.event_id}: expected previous hash {previous_hash or 'root'} but found {recorded_previous_hash or 'root'}."
+            )
+
+        expected_hash = _compute_evidence_hash(event, recorded_previous_hash)
+        if event.evidence_hash != expected_hash:
+            issues.append(f"{event.event_id}: recorded evidence hash does not match the stored event payload.")
+        previous_hash = event.evidence_hash
+    return issues
+
+
 def _resolve_outcome_status(event: WorkflowEvent, decision: PolicyDecision) -> OutcomeStatus:
     if decision.decision == PolicyStatus.BLOCKED:
         return OutcomeStatus.SKIPPED
@@ -121,10 +232,23 @@ def _resolve_outcome_status(event: WorkflowEvent, decision: PolicyDecision) -> O
 
 def _apply_policy(event: WorkflowEvent, decision: PolicyDecision) -> WorkflowEvent:
     metadata = dict(event.metadata)
-    metadata["_policy"] = decision.model_dump(mode="json")
+    metadata["_policy"] = {**decision.model_dump(mode="json"), "source": "evaluated"}
     return event.model_copy(
         update={
             "policy_status": decision.decision,
+            "policy_rule_ids": [violation.rule_id for violation in decision.violated_rules],
+            "outcome_status": _resolve_outcome_status(event, decision),
+            "metadata": metadata,
+        }
+    )
+
+
+def _apply_preserved_policy(event: WorkflowEvent, decision: PolicyDecision) -> WorkflowEvent:
+    metadata = dict(event.metadata)
+    metadata["_policy"] = {**decision.model_dump(mode="json"), "source": "preserved"}
+    return event.model_copy(
+        update={
+            "policy_rule_ids": event.policy_rule_ids or [violation.rule_id for violation in decision.violated_rules],
             "outcome_status": _resolve_outcome_status(event, decision),
             "metadata": metadata,
         }
@@ -211,7 +335,17 @@ def _record_event(session: Session, event: WorkflowEvent) -> EventRecord:
         business_object_type=event.business_object_type,
         business_object_id=event.business_object_id,
         permission_scope=event.permission_scope,
+        authority_subject=event.authority_subject,
+        authority_delegation_source=event.authority_delegation_source,
         policy_status=event.policy_status.value,
+        policy_rule_ids_json=event.policy_rule_ids,
+        review_case_id=event.review_case_id,
+        review_state=event.review_state,
+        human_decision_reason=event.human_decision_reason,
+        due_by=event.due_by,
+        source_trace_ref=event.source_trace_ref,
+        source_system_ref=event.source_system_ref,
+        evidence_hash=event.evidence_hash,
         outcome_status=event.outcome_status.value,
         parent_event_id=event.parent_event_id,
         metadata_json=event.metadata,
@@ -267,10 +401,17 @@ def ingest_event(
     session: Session,
     event: WorkflowEvent,
     evaluator: PolicyEvaluator | None = None,
+    preserve_event_policy: bool = False,
 ) -> EventIngestionResponse:
-    evaluator = evaluator or PolicyEvaluator()
-    decision = evaluator.evaluate(event)
-    resolved_event = _apply_policy(event, decision)
+    if preserve_event_policy:
+        decision = _decision_from_preserved_event(event)
+        resolved_event = _apply_preserved_policy(event, decision)
+    else:
+        evaluator = evaluator or PolicyEvaluator()
+        decision = evaluator.evaluate(event)
+        resolved_event = _apply_policy(event, decision)
+
+    resolved_event = _decorate_evidence(session, resolved_event, decision)
 
     _upsert_workflow(session, resolved_event)
     _record_event(session, resolved_event)

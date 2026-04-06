@@ -1,0 +1,159 @@
+{
+  "source": "generic_openinference",
+  "workflow": {
+    "workflow_id": "wf-ollama-local-7001",
+    "workflow_name": "Invoice Approval with Agent Participation",
+    "business_object_type": "invoice",
+    "business_object_id": "INV-OLLAMA-LOCAL-7001",
+    "workflow_defaults": {
+      "invoice_id": "INV-OLLAMA-LOCAL-7001",
+      "vendor_id": "VENDOR-OLLAMA-7001",
+      "vendor_name": "Northstar Analytics",
+      "invoice_amount": 12750,
+      "currency": "USD",
+      "po_number": "PO-OLLAMA-7001",
+      "invoice_due_date": "2026-04-08",
+      "payment_batch_cutoff": "2026-04-08T14:00:00Z",
+      "payment_terms": "Net 10",
+      "cost_center": "FINANCE-TRANSFORM-08",
+      "request_reason": "Quarter-close analytics implementation",
+      "agent_approval_threshold": 5000,
+      "risk_category": "delayed_payment_risk",
+      "business_consequence": "If finance review lands after the payment cut-off, the vendor payment moves to the next business day.",
+      "po_lookup_status": "matched",
+      "po_budget_status": "approved",
+      "runtime_origin": "local_ollama_agent",
+      "ollama_model": "gemma3:4b",
+      "trace_fixture_basis": "Runtime-generated free local export from an Ollama-backed invoice approval agent."
+    }
+  },
+  "spans": [
+    {
+      "span_id": "span-local-01",
+      "parent_span_id": null,
+      "name": "Classify invoice",
+      "start_time": "2026-04-06T17:13:39.492036Z",
+      "end_time": null,
+      "attributes": {
+        "openinference.span.kind": "agent",
+        "agent.id": "ap-agent",
+        "agent.name": "AP Agent",
+        "trace.id": "trace_local_ollama_20260406171339_218642c7",
+        "aag.workflow.process_step": "classification",
+        "aag.action_summary": "Route for Finance Review",
+        "aag.permission_scope": "invoice:classify",
+        "aag.authority_subject": "AP Agent may classify invoices and prepare approval packets.",
+        "aag.authority_delegation_source": "Finance AP delegation policy v2026.03",
+        "aag.headline": "INV-OLLAMA-LOCAL-7001 - Northstar Analytics - $12,750",
+        "aag.metadata.classification": "Vendor Payment",
+        "aag.metadata.control_lane": "Finance Review",
+        "aag.metadata.risk_note": "Delayed payment risk - review after cutoff.",
+        "service.name": "ollama-agent-runtime"
+      },
+      "status": null
+    },
+    {
+      "span_id": "span-local-02",
+      "parent_span_id": null,
+      "name": "Lookup purchase order",
+      "start_time": "2026-04-06T17:14:39.492036Z",
+      "end_time": null,
+      "attributes": {
+        "openinference.span.kind": "tool",
+        "agent.id": "ap-agent",
+        "agent.name": "AP Agent",
+        "trace.id": "trace_local_ollama_20260406171339_218642c7",
+        "tool.name": "lookup_purchase_order",
+        "aag.tool_name": "lookup_purchase_order",
+        "aag.workflow.process_step": "po_check",
+        "aag.action_summary": "AP Agent verified the PO record before preparing the approval recommendation.",
+        "aag.permission_scope": "erp:read:purchase_orders",
+        "aag.authority_subject": "AP Agent may retrieve supporting PO records through approved read-only finance tools.",
+        "aag.authority_delegation_source": "Finance AP delegation policy v2026.03",
+        "aag.target_system": "erp-read",
+        "aag.headline": "Agent pulled PO evidence from the finance system",
+        "aag.why_it_mattered": "The approval packet included source-system evidence before the policy gate ran.",
+        "aag.metadata.po_status": "matched",
+        "aag.metadata.budget_status": "approved",
+        "service.name": "local-erp-tool"
+      },
+      "status": null
+    },
+    {
+      "span_id": "span-local-03",
+      "parent_span_id": null,
+      "name": "Prepare approval recommendation",
+      "start_time": "2026-04-06T17:15:39.492036Z",
+      "end_time": null,
+      "attributes": {
+        "openinference.span.kind": "agent",
+        "agent.id": "ap-agent",
+        "agent.name": "AP Agent",
+        "trace.id": "trace_local_ollama_20260406171339_218642c7",
+        "aag.action_type": "propose_invoice_approval",
+        "aag.workflow.process_step": "approval_recommendation",
+        "aag.action_summary": "AP Agent prepared the approval packet with invoice, PO, and payment cut-off context.",
+        "aag.permission_scope": "invoice:approve:proposal",
+        "aag.authority_subject": "AP Agent may prepare approval packets but cannot approve invoices above USD 5,000.",
+        "aag.authority_delegation_source": "Finance AP delegation policy v2026.03",
+        "aag.headline": "Agent assembled the approval packet for finance review",
+        "aag.why_it_mattered": "The agent accelerated review preparation without crossing the final approval boundary.",
+        "aag.metadata.review_summary": null,
+        "aag.metadata.reviewer_note": null,
+        "aag.target_system": "erp-approvals",
+        "service.name": "ollama-agent-runtime"
+      },
+      "status": null
+    },
+    {
+      "span_id": "span-local-04",
+      "parent_span_id": null,
+      "name": "Policy evaluation",
+      "start_time": "2026-04-06T17:16:39.492036Z",
+      "end_time": null,
+      "attributes": {
+        "trace.id": "trace_local_ollama_20260406171339_218642c7",
+        "aag.action_type": "policy_evaluation",
+        "aag.workflow.process_step": "policy_gate",
+        "aag.action_summary": "Policy engine evaluated the approval recommendation against delegated authority.",
+        "aag.policy_status": "escalated",
+        "aag.policy_rule_ids": [
+          "large_invoice_requires_escalation"
+        ],
+        "aag.policy_explanation": "Invoice amount 12,750.00 exceeds the agent approval threshold of 5,000.00.",
+        "aag.recommended_next_action": "Escalate to a finance approver before any approval is executed.",
+        "aag.review_case_id": "review-wf-ollama-local-7001",
+        "aag.review_state": "pending_human_review",
+        "aag.due_by": "2026-04-08T14:00:00Z",
+        "aag.headline": "Policy gate escalated the invoice into a finance review case",
+        "service.name": "policy-engine"
+      },
+      "status": null
+    },
+    {
+      "span_id": "span-local-05",
+      "parent_span_id": null,
+      "name": "Finance review",
+      "start_time": "2026-04-06T17:21:39.492036Z",
+      "end_time": null,
+      "attributes": {
+        "trace.id": "trace_local_ollama_20260406171339_218642c7",
+        "aag.actor_type": "human",
+        "aag.actor_id": "finance-director-7",
+        "aag.actor_name": "Finance Director",
+        "aag.action_type": "human_approve_invoice",
+        "aag.workflow.process_step": "finance_review",
+        "aag.action_summary": "Finance Director approved the invoice after reviewing the PO evidence, control lane, and payment cut-off risk.",
+        "aag.permission_scope": "invoice:approve:high_value",
+        "aag.authority_subject": "Finance Director holds final approval authority for invoices above the delegated agent threshold.",
+        "aag.authority_delegation_source": "Finance approval matrix FY2026",
+        "aag.review_case_id": "review-wf-ollama-local-7001",
+        "aag.review_state": "resolved_by_human",
+        "aag.human_decision_reason": "Approved because the PO matched, the spend was authorized, and missing the cut-off would have delayed vendor payment.",
+        "aag.headline": "Finance Director resolved the review case and approved the invoice",
+        "service.name": "finance-review-console"
+      },
+      "status": null
+    }
+  ]
+}

@@ -37,10 +37,15 @@ It is a workflow-aware evidence model that preserves:
 - sequence
 - handoff
 - outcome
+- review case
+- provenance
+- evidence integrity
 
 When that layer exists, engineering, process, and governance teams can all reason about the same runtime record.
 
 When it does not, review collapses into scattered logs, application state, and prompt assumptions.
+
+The trust boundary matters too: a trace may still be useful even when it is incomplete, but it should not be represented as review-ready evidence until authority, policy, and review context are explicit.
 
 ## Why This Matters
 
@@ -49,6 +54,10 @@ Enterprises do not just need agents that can act.
 They need agents that can be investigated, replayed, and governed after acting.
 
 That means policy has to be recorded as evidence. Human intervention has to be visible in the same trace. Business consequence has to be attached to the run so the workflow is understandable in operational terms, not only technical ones.
+
+It also means the product should stay focused on the point where trust breaks:
+
+- the blocked or escalated agent action that now needs human review
 
 ## Why This Project Is Narrow
 
@@ -59,4 +68,3 @@ Agent Activity Graph deliberately stays inside one workflow:
 The narrowness is a feature. It keeps the core point visible:
 
 runtime evidence should be treated as a first-class product layer for enterprise agent systems.
-
