@@ -289,6 +289,8 @@ def generate_local_review_trace(
                 "aag.review_case_id": review_case_id if policy.decision != PolicyStatus.ALLOWED else None,
                 "aag.review_state": "pending_human_review" if policy.decision != PolicyStatus.ALLOWED else None,
                 "aag.due_by": due_by if policy.decision != PolicyStatus.ALLOWED else None,
+                "aag.metadata.review_owner_name": "Finance Director",
+                "aag.metadata.review_owner_role": "Finance Director",
                 "aag.headline": "Policy gate escalated the invoice into a finance review case"
                 if policy.decision != PolicyStatus.ALLOWED
                 else "Policy gate allowed the invoice to remain in the agent lane",
@@ -313,6 +315,11 @@ def generate_local_review_trace(
                 "aag.review_case_id": review_case_id,
                 "aag.review_state": "resolved_by_human",
                 "aag.human_decision_reason": "Approved because the PO matched, the spend was authorized, and missing the cut-off would have delayed vendor payment.",
+                "aag.decision_code": "approve_high_value_invoice",
+                "aag.decision_rationale": "Approved because source-system evidence was complete, the spend was authorized, and delaying review would have pushed payment past the cut-off.",
+                "aag.approved_exception_type": "high_value_same_day_payment",
+                "aag.approver_role": "Finance Director",
+                "aag.closure_status": "approved",
                 "aag.headline": "Finance Director resolved the review case and approved the invoice",
                 "service.name": "finance-review-console",
             },

@@ -23,9 +23,9 @@
       <div class="helper">Seeded workflow instances currently recorded.</div>
     </div>
     <div class="metric">
-      <div class="label">Evidence Incidents</div>
-      <div class="value">{{ incident_count }}</div>
-      <div class="helper">Escalations, blocked actions, and risky transitions.</div>
+      <div class="label">Review Cases</div>
+      <div class="value">{{ review_case_count }}</div>
+      <div class="helper">Open or resolved review records attached to policy-gated agent actions.</div>
     </div>
     <div class="metric">
       <div class="label">Policy Rules</div>
@@ -72,7 +72,29 @@
 
   <section class="grid grid--2" style="margin-top: 1rem;">
     <div class="panel">
-      <div class="label">Recent Workflows</div>
+      <div class="label">Review cases</div>
+      {% if review_cases %}
+        <div class="row-list" style="margin-top: 0.8rem;">
+          {% for case in review_cases %}
+            <a class="row" href="/reviews/{{ case.review_case_id }}">
+              <div>
+                <strong>{{ case.review_case_id }}</strong>
+                <div class="helper">{{ case.business_object_id }} · {{ case.summary }}</div>
+              </div>
+              <div>
+                <span class="badge badge--{{ case.status }}">{{ case.status.replace("_", " ") }}</span>
+                <span class="badge badge--{{ case.evidence_status }}">{{ case.evidence_status.replace("_", " ") }}</span>
+                <div class="helper">Score {{ case.evidence_score }}</div>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>No review cases are recorded yet.</p>
+      {% endif %}
+    </div>
+    <div class="panel">
+      <div class="label">Recent workflows</div>
       {% if recent_workflows %}
         <div class="row-list" style="margin-top: 0.8rem;">
           {% for workflow in recent_workflows %}
@@ -91,25 +113,15 @@
         <p>No workflow evidence yet.</p>
       {% endif %}
     </div>
-    <div class="panel">
-      <div class="label">Recent Incidents</div>
-      {% if recent_incidents %}
-        <div class="row-list" style="margin-top: 0.8rem;">
-          {% for incident in recent_incidents %}
-            <a class="row" href="/incidents/{{ incident.incident_id }}">
-              <div>
-                <strong>{{ incident.title }}</strong>
-                <div class="helper">{{ incident.workflow_id }}</div>
-              </div>
-              <div>
-                <span class="badge badge--{{ incident.severity }}">{{ incident.severity }}</span>
-              </div>
-            </a>
-          {% endfor %}
-        </div>
-      {% else %}
-        <p>No policy incidents recorded.</p>
-      {% endif %}
-    </div>
+  </section>
+
+  <section class="panel" style="margin-top: 1rem;">
+    <div class="label">Review-ready evidence</div>
+    <p>
+      Tracing tells you what ran. Review-ready evidence tells you what a human can approve.
+      Agent Activity Graph now grades that boundary explicitly through a versioned readiness spec
+      built around authority, policy, human review, provenance, and evidence integrity.
+    </p>
+    <div class="footer-note">Use the Review Queue to see active cases, or the CLI/API review-readiness report to grade incoming traces before they enter the workflow record.</div>
   </section>
 {% endblock %}

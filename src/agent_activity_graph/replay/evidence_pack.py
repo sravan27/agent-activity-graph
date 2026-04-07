@@ -5,10 +5,20 @@ from agent_activity_graph.sdk.events import EvidencePack, ReplayHighlight
 from agent_activity_graph.utils.time import utcnow
 
 
+def _resolution_entry(detail):
+    for entry in reversed(detail.replay.entries):
+        if entry.human_intervention and (
+            entry.closure_status or entry.decision_code or entry.human_decision_reason
+        ):
+            return entry
+    return None
+
+
 def build_evidence_pack(session, incident_id: str) -> EvidencePack:
     detail = build_incident_detail(session, incident_id)
     trigger_metadata = detail.trigger_event.metadata
     risk_category = trigger_metadata.get("risk_category")
+    resolution_entry = _resolution_entry(detail)
 
     findings = [
         ReplayHighlight(
@@ -47,9 +57,22 @@ def build_evidence_pack(session, incident_id: str) -> EvidencePack:
         risk_category=str(risk_category) if risk_category else None,
         business_consequence=detail.replay.business_consequence,
         final_outcome=detail.replay.final_outcome,
+        review_readiness_spec_version=detail.replay.review_readiness_spec_version,
         evidence_status=detail.replay.evidence_status,
+        evidence_score=detail.replay.evidence_score,
         evidence_issues=detail.replay.evidence_issues,
         source_trace_refs=detail.replay.source_trace_refs,
+        decision_code=resolution_entry.decision_code if resolution_entry else None,
+        decision_rationale=(
+            resolution_entry.decision_rationale or resolution_entry.human_decision_reason
+            if resolution_entry
+            else None
+        ),
+        approved_exception_type=resolution_entry.approved_exception_type if resolution_entry else None,
+        approver_role=resolution_entry.approver_role if resolution_entry else None,
+        remediation_owner=resolution_entry.remediation_owner if resolution_entry else None,
+        remediation_due_by=resolution_entry.remediation_due_by if resolution_entry else None,
+        closure_status=resolution_entry.closure_status if resolution_entry else None,
         findings=findings,
         chronology=detail.replay.entries,
         recommended_actions=recommended_actions,
@@ -65,7 +88,9 @@ def render_evidence_pack_markdown(pack: EvidencePack) -> str:
         f"- Business object: `{pack.business_object_id}`",
         f"- Generated at: `{pack.generated_at.isoformat()}`",
         f"- Final outcome: `{pack.final_outcome}`",
+        f"- Review readiness spec: `{pack.review_readiness_spec_version}`",
         f"- Evidence status: `{pack.evidence_status}`",
+        f"- Evidence score: `{pack.evidence_score}`",
     ]
     if pack.review_case_id:
         lines.append(f"- Review case: `{pack.review_case_id}`")
@@ -73,6 +98,12 @@ def render_evidence_pack_markdown(pack: EvidencePack) -> str:
         lines.append(f"- Risk category: `{pack.risk_category}`")
     if pack.source_trace_refs:
         lines.append(f"- Source trace refs: `{', '.join(pack.source_trace_refs)}`")
+    if pack.decision_code:
+        lines.append(f"- Decision code: `{pack.decision_code}`")
+    if pack.approver_role:
+        lines.append(f"- Approver role: `{pack.approver_role}`")
+    if pack.closure_status:
+        lines.append(f"- Closure status: `{pack.closure_status}`")
     lines.extend(
         [
             "",
@@ -94,6 +125,23 @@ def render_evidence_pack_markdown(pack: EvidencePack) -> str:
                 pack.business_consequence,
             ]
         )
+
+    if pack.decision_code or pack.decision_rationale or pack.approved_exception_type or pack.remediation_owner:
+        lines.extend(["", "## Resolution Record"])
+        if pack.decision_code:
+            lines.append(f"- Decision code: `{pack.decision_code}`")
+        if pack.decision_rationale:
+            lines.append(f"- Decision rationale: {pack.decision_rationale}")
+        if pack.approved_exception_type:
+            lines.append(f"- Approved exception type: `{pack.approved_exception_type}`")
+        if pack.approver_role:
+            lines.append(f"- Approver role: `{pack.approver_role}`")
+        if pack.closure_status:
+            lines.append(f"- Closure status: `{pack.closure_status}`")
+        if pack.remediation_owner:
+            lines.append(f"- Remediation owner: `{pack.remediation_owner}`")
+        if pack.remediation_due_by:
+            lines.append(f"- Remediation due by: `{pack.remediation_due_by.isoformat()}`")
 
     lines.extend(["", "## Findings"])
     for finding in pack.findings:

@@ -26,6 +26,8 @@ workflow event or mapped trace
 
 The projections are where the product thesis becomes visible:
 
+- review queue
+- review case
 - workflow summary
 - incident record
 - activity graph
@@ -66,6 +68,20 @@ The strongest product surface is replay. It reconstructs the ordered sequence of
 
 Replay also carries review case context, source trace references, and evidence-chain verification so the surface is useful for operational review, not only developer inspection.
 
+### Review readiness as a named artifact
+
+The repository now formalizes review readiness as `aag.review_readiness.v1`.
+
+That spec grades each run across:
+
+- authority completeness
+- policy completeness
+- human review completeness
+- provenance completeness
+- evidence integrity
+
+This keeps the project from over-claiming. A trace can still be useful, but it only becomes review-ready evidence when those requirements are explicit and verifiable.
+
 ### Local-first by default
 
 SQLite keeps the project inspectable and auditable. The point is to make the layer obvious on a laptop, not to bury it behind deployment complexity.
@@ -84,6 +100,13 @@ Important fields beyond the basic action record:
 - `review_case_id`
 - `review_state`
 - `human_decision_reason`
+- `decision_code`
+- `decision_rationale`
+- `approved_exception_type`
+- `approver_role`
+- `remediation_owner`
+- `remediation_due_by`
+- `closure_status`
 - `due_by`
 - `source_trace_ref`
 - `source_system_ref`

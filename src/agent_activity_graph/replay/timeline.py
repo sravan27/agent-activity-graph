@@ -6,7 +6,10 @@ from agent_activity_graph.db.repository import (
     get_workflow,
     get_workflow_events,
     upsert_replay_session,
-    verify_evidence_chain,
+)
+from agent_activity_graph.review.readiness import (
+    REVIEW_READINESS_SPEC_VERSION,
+    build_review_readiness_report,
 )
 from agent_activity_graph.sdk.events import (
     ActorType,
@@ -101,59 +104,6 @@ def _source_trace_refs(events: list[WorkflowEvent]) -> list[str]:
         if event.source_trace_ref and event.source_trace_ref not in refs:
             refs.append(event.source_trace_ref)
     return refs
-
-
-def _event_review_actions() -> set[str]:
-    return {"human_approve_invoice", "reject_invoice", "human_review_step"}
-
-
-def _high_impact_actions() -> set[str]:
-    return {
-        "prepare_approval_recommendation",
-        "approve_invoice",
-        "human_approve_invoice",
-        "reject_invoice",
-        "human_review_step",
-        "call_tool",
-        "call_mcp_tool",
-        "agent_run_step",
-    }
-
-
-def _evidence_completeness_issues(events: list[WorkflowEvent]) -> list[str]:
-    issues: list[str] = []
-    for event in events:
-        if not event.source_trace_ref:
-            issues.append(f"{event.event_id}: missing source trace reference.")
-
-        if event.action_type == "policy_evaluation" and event.policy_status != PolicyStatus.ALLOWED:
-            if not event.policy_rule_ids:
-                issues.append(f"{event.event_id}: policy decision is missing policy_rule_ids.")
-            if not event.review_case_id:
-                issues.append(f"{event.event_id}: policy-controlled step is missing review_case_id.")
-
-        if event.action_type in _event_review_actions() and event.actor_type == ActorType.HUMAN:
-            if not event.human_decision_reason:
-                issues.append(f"{event.event_id}: human review step is missing human_decision_reason.")
-
-        if event.actor_type in {ActorType.AGENT, ActorType.HUMAN} and event.action_type in _high_impact_actions():
-            if not event.authority_subject:
-                issues.append(f"{event.event_id}: high-impact action is missing authority_subject.")
-            if not event.authority_delegation_source:
-                issues.append(f"{event.event_id}: high-impact action is missing authority_delegation_source.")
-
-    return issues
-
-
-def assess_evidence_status(events: list[WorkflowEvent]) -> tuple[str, list[str]]:
-    integrity_issues = verify_evidence_chain(events)
-    completeness_issues = _evidence_completeness_issues(events)
-    issues = integrity_issues + completeness_issues
-    if integrity_issues:
-        return "integrity_warning", issues
-    if completeness_issues:
-        return "needs_enrichment", issues
-    return "verified", []
 
 
 def _entry_business_consequence(event: WorkflowEvent) -> str | None:
@@ -300,6 +250,13 @@ def build_replay_timeline(
                 review_case_id=event.review_case_id,
                 review_state=event.review_state,
                 human_decision_reason=event.human_decision_reason,
+                decision_code=event.decision_code,
+                decision_rationale=event.decision_rationale,
+                approved_exception_type=event.approved_exception_type,
+                approver_role=event.approver_role,
+                remediation_owner=event.remediation_owner,
+                remediation_due_by=event.remediation_due_by,
+                closure_status=event.closure_status,
                 due_by=event.due_by,
                 source_trace_ref=event.source_trace_ref,
                 source_system_ref=event.source_system_ref,
@@ -328,7 +285,19 @@ def build_replay_timeline(
     highlights = _build_highlights(entries)
     review_case_id = _latest_review_case_id(events)
     source_trace_refs = _source_trace_refs(events)
-    evidence_status, evidence_issues = assess_evidence_status(events)
+    readiness_report = build_review_readiness_report(
+        events,
+        target_type="workflow",
+        target_id=workflow_id,
+    )
+    evidence_status = (
+        "verified"
+        if readiness_report.status == "review_ready"
+        else "integrity_warning"
+        if readiness_report.status == "not_review_ready"
+        else "needs_enrichment"
+    )
+    evidence_issues = readiness_report.issues
 
     summary = {
         "workflow_name": workflow.workflow_name,
@@ -342,7 +311,9 @@ def build_replay_timeline(
         "actor_handoff_count": actor_handoff_count,
         "review_case_id": review_case_id,
         "source_trace_refs": source_trace_refs,
+        "review_readiness_spec_version": REVIEW_READINESS_SPEC_VERSION,
         "evidence_status": evidence_status,
+        "evidence_score": readiness_report.overall_score,
         "evidence_issues": evidence_issues,
         "highlights": [highlight.model_dump(mode="json") for highlight in highlights],
     }
@@ -370,7 +341,9 @@ def build_replay_timeline(
         actor_handoff_count=actor_handoff_count,
         review_case_id=review_case_id,
         source_trace_refs=source_trace_refs,
+        review_readiness_spec_version=REVIEW_READINESS_SPEC_VERSION,
         evidence_status=evidence_status,
+        evidence_score=readiness_report.overall_score,
         evidence_issues=evidence_issues,
         highlights=highlights,
         entries=entries,

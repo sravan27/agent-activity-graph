@@ -1,0 +1,109 @@
+{
+  "source": "mcp",
+  "workflow": {
+    "workflow_id": "wf-trace-mcp-5201",
+    "workflow_name": "Invoice Approval with Agent Participation",
+    "business_object_type": "invoice",
+    "business_object_id": "INV-TRACE-MCP-5201",
+    "workflow_defaults": {
+      "invoice_amount": 16400,
+      "currency": "USD",
+      "vendor_id": "VENDOR-MCP-5201",
+      "vendor_name": "Aster Cloud Services",
+      "po_number": "PO-MCP-5201",
+      "payment_batch_cutoff": "2026-04-03T13:30:00Z",
+      "invoice_due_date": "2026-04-03",
+      "cost_center": "INFRA-32",
+      "payment_terms": "Net 7",
+      "risk_category": "delayed_payment_risk",
+      "business_consequence": "If the same-day payment exception is not reviewed before cut-off, the vendor payment misses the contractually expected window.",
+      "trace_fixture_basis": "Public-source-derived MCP fixture based on hosted MCP approval patterns, mapped into a finance control path with explicit policy and human review evidence."
+    }
+  },
+  "spans": [
+    {
+      "span_id": "span-5201-01",
+      "name": "lookup_purchase_order",
+      "start_time": "2026-04-03T08:55:00Z",
+      "attributes": {
+        "mcp.tool.name": "lookup_purchase_order",
+        "mcp.server.name": "finance-erp-gateway",
+        "trace.id": "trace_5201mcppaymentreview00000001",
+        "agent.name": "AP Agent",
+        "aag.workflow.process_step": "po_check",
+        "aag.action_summary": "AP Agent retrieved the PO through the MCP finance gateway before requesting the same-day payment exception.",
+        "aag.permission_scope": "erp:read:purchase_orders",
+        "aag.authority_subject": "AP Agent may retrieve source finance records through approved MCP read-only tools.",
+        "aag.authority_delegation_source": "Finance AP delegation policy v2026.03",
+        "aag.headline": "Agent pulled PO evidence from an MCP finance gateway",
+        "service.name": "finance-erp-gateway"
+      }
+    },
+    {
+      "span_id": "span-5201-02",
+      "name": "propose_exception",
+      "start_time": "2026-04-03T08:57:00Z",
+      "attributes": {
+        "trace.id": "trace_5201mcppaymentreview00000001",
+        "agent.name": "AP Agent",
+        "aag.workflow.process_step": "approval_recommendation",
+        "aag.action_type": "propose_invoice_approval",
+        "aag.action_summary": "AP Agent proposed approval with a same-day payment exception because the vendor payment was approaching cut-off.",
+        "aag.permission_scope": "invoice:approve:proposal",
+        "aag.authority_subject": "AP Agent may propose high-value invoice approval but may not grant same-day payment exceptions.",
+        "aag.authority_delegation_source": "Finance exception matrix FY2026",
+        "aag.why_it_mattered": "The agent stayed inside preparation authority but triggered an exception path that requires human review.",
+        "service.name": "mcp-orchestrated-agent"
+      }
+    },
+    {
+      "span_id": "span-5201-03",
+      "name": "policy_evaluation",
+      "start_time": "2026-04-03T08:58:00Z",
+      "attributes": {
+        "trace.id": "trace_5201mcppaymentreview00000001",
+        "aag.action_type": "policy_evaluation",
+        "aag.workflow.process_step": "policy_gate",
+        "aag.action_summary": "Policy engine escalated the same-day payment exception to finance review.",
+        "aag.policy_status": "requires_human_review",
+        "aag.policy_rule_ids": ["same_day_payment_requires_human_review"],
+        "aag.policy_explanation": "Same-day payment exceptions require finance approval even when the invoice and PO are valid.",
+        "aag.recommended_next_action": "Route the review case to the finance director before releasing payment.",
+        "aag.review_case_id": "review-trace-mcp-5201",
+        "aag.review_state": "pending_human_review",
+        "aag.due_by": "2026-04-03T13:30:00Z",
+        "aag.metadata.review_owner_name": "Finance Director",
+        "aag.metadata.review_owner_role": "Finance Director",
+        "aag.headline": "Policy gate opened a review case for the same-day payment exception",
+        "service.name": "policy-engine"
+      }
+    },
+    {
+      "span_id": "span-5201-04",
+      "name": "finance_review",
+      "start_time": "2026-04-03T09:05:00Z",
+      "attributes": {
+        "trace.id": "trace_5201mcppaymentreview00000001",
+        "aag.actor_type": "human",
+        "aag.actor_id": "finance-director-3",
+        "aag.actor_name": "Finance Director",
+        "aag.action_type": "human_approve_invoice",
+        "aag.workflow.process_step": "finance_review",
+        "aag.action_summary": "Finance Director approved the invoice and same-day payment exception after reviewing the MCP-backed evidence.",
+        "aag.permission_scope": "invoice:approve:exception",
+        "aag.authority_subject": "Finance Director holds final authority for same-day payment exceptions.",
+        "aag.authority_delegation_source": "Finance exception matrix FY2026",
+        "aag.review_case_id": "review-trace-mcp-5201",
+        "aag.review_state": "resolved_by_human",
+        "aag.human_decision_reason": "Approved because the PO matched, vendor hold checks were clear, and missing cut-off would have breached the payment commitment.",
+        "aag.decision_code": "approve_same_day_payment_exception",
+        "aag.decision_rationale": "The exception was approved because the supporting MCP evidence was complete and the payment risk was operationally material.",
+        "aag.approved_exception_type": "same_day_payment_exception",
+        "aag.approver_role": "Finance Director",
+        "aag.closure_status": "approved",
+        "aag.headline": "Finance Director approved the review case and same-day payment exception",
+        "service.name": "finance-console"
+      }
+    }
+  ]
+}

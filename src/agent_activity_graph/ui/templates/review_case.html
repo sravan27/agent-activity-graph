@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Agent Activity Graph | {{ detail.review_case.review_case_id }}{% endblock %}
+{% block content %}
+  <section class="panel" style="border: 1px solid var(--border-strong); border-top: 4px solid var(--accent);">
+    <div class="hero-split">
+      <div>
+        <div class="label">Review case</div>
+        <h2 class="section-title" style="margin-top: 0.5rem;">{{ detail.review_case.title }}</h2>
+        <p>{{ detail.review_case.summary }}</p>
+        <div class="toolbar" style="margin-top: 1.25rem;">
+          <a class="button-link button-link--primary" href="/workflows/{{ detail.workflow.workflow_id }}/replay">Open replay</a>
+          {% if detail.primary_incident %}
+            <a class="button-link" href="/incidents/{{ detail.primary_incident.incident_id }}">Open incident</a>
+            <a class="button-link" href="/incidents/{{ detail.primary_incident.incident_id }}/evidence-pack">Open evidence pack</a>
+          {% endif %}
+        </div>
+      </div>
+      <div class="signal-grid">
+        <div class="signal-card signal-card--policy">
+          <div class="eyebrow">Case status</div>
+          <strong><span class="badge badge--{{ detail.review_case.status }}">{{ detail.review_case.status.replace("_", " ") }}</span></strong>
+          <p>{{ detail.replay.policy_story }}</p>
+        </div>
+        <div class="signal-card signal-card--risk">
+          <div class="eyebrow">Review readiness</div>
+          <strong style="font-size: 1rem;">{{ detail.replay.evidence_status.replace("_", " ") }} · score {{ detail.replay.evidence_score }}</strong>
+          <p>{{ detail.replay.review_readiness_spec_version }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="summary-bar" style="margin-top: 1.5rem; border-color: var(--border-strong);">
+      <div class="summary-box">
+        <div class="label">Case</div>
+        <div class="value mono" style="font-size: 0.95rem;">{{ detail.review_case.review_case_id }}</div>
+      </div>
+      <div class="summary-box">
+        <div class="label">Workflow</div>
+        <div class="value mono" style="font-size: 0.95rem;">{{ detail.workflow.workflow_id }}</div>
+      </div>
+      <div class="summary-box">
+        <div class="label">Authority owner</div>
+        <div class="value" style="font-size: 1rem;">{{ detail.review_case.authority_owner or "n/a" }}</div>
+      </div>
+      <div class="summary-box">
+        <div class="label">Human owner</div>
+        <div class="value" style="font-size: 1rem;">{{ detail.review_case.human_owner or "unassigned" }}</div>
+      </div>
+      <div class="summary-box">
+        <div class="label">Due by</div>
+        <div class="value mono" style="font-size: 0.95rem;">{{ detail.review_case.due_by.strftime("%Y-%m-%d %H:%M UTC") if detail.review_case.due_by else "n/a" }}</div>
+      </div>
+      <div class="summary-box">
+        <div class="label">Closure</div>
+        <div class="value" style="font-size: 1rem;">{{ detail.review_case.closure_status or "open" }}</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid grid--2" style="margin-top: 1rem;">
+    <div class="panel">
+      <div class="label">Review posture</div>
+      <div class="fact-grid" style="margin-top: 1rem;">
+        <div class="fact">
+          <strong>Business object</strong>
+          <p class="mono">{{ detail.review_case.business_object_id }}</p>
+        </div>
+        <div class="fact">
+          <strong>Policy decision</strong>
+          <p>{{ detail.review_case.policy_decision.replace("_", " ") if detail.review_case.policy_decision else "n/a" }}</p>
+        </div>
+        <div class="fact">
+          <strong>Business consequence</strong>
+          <p>{{ detail.review_case.business_consequence or "n/a" }}</p>
+        </div>
+        <div class="fact">
+          <strong>Incidents attached</strong>
+          <p class="mono">{{ detail.review_case.incident_count }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="label">Resolution record</div>
+      {% if detail.resolution_event %}
+        <div class="fact-grid" style="margin-top: 1rem;">
+          <div class="fact">
+            <strong>Decision code</strong>
+            <p class="mono">{{ detail.review_case.decision_code or "n/a" }}</p>
+          </div>
+          <div class="fact">
+            <strong>Approver role</strong>
+            <p>{{ detail.review_case.approver_role or "n/a" }}</p>
+          </div>
+          <div class="fact">
+            <strong>Decision rationale</strong>
+            <p>{{ detail.resolution_event.decision_rationale or detail.resolution_event.human_decision_reason or "n/a" }}</p>
+          </div>
+          <div class="fact">
+            <strong>Approved exception type</strong>
+            <p class="mono">{{ detail.review_case.approved_exception_type or "n/a" }}</p>
+          </div>
+          <div class="fact">
+            <strong>Remediation owner</strong>
+            <p>{{ detail.review_case.remediation_owner or "n/a" }}</p>
+          </div>
+          <div class="fact">
+            <strong>Remediation due</strong>
+            <p class="mono">{{ detail.review_case.remediation_due_by.strftime("%Y-%m-%d %H:%M UTC") if detail.review_case.remediation_due_by else "n/a" }}</p>
+          </div>
+        </div>
+      {% else %}
+        <div class="signal-card signal-card--policy" style="margin-top: 1rem;">
+          <div class="eyebrow">Current review state</div>
+          <strong style="font-size: 1rem;">{{ detail.review_case.review_state or "pending_human_review" }}</strong>
+          <p>The case is still open. Use replay and the incident record to review the policy stop before a human decision lands.</p>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="grid grid--2" style="margin-top: 1rem;">
+    <div class="panel">
+      <div class="label">Case events</div>
+      <div class="timeline" style="margin-top: 1rem; gap: 1rem;">
+        {% for event in detail.case_events %}
+          <div class="timeline-card timeline-card--{{ 'human_intervention' if event.actor_type.value == 'human' else 'policy_evaluation' if event.action_type == 'policy_evaluation' else 'agent_action' if event.actor_type.value == 'agent' else 'system_update' }}">
+            <div class="card-header">
+              <div>
+                <h3>{{ event.metadata.get("headline", event.process_step) }}</h3>
+                <div class="helper">{{ event.timestamp.strftime("%Y-%m-%d %H:%M:%S UTC") }}</div>
+              </div>
+              <span class="badge badge--{{ event.policy_status.value }}">{{ event.policy_status.value.replace("_", " ") }}</span>
+            </div>
+            <div class="card-body">
+              <p style="margin: 0; color: var(--text-main);">{{ event.action_summary }}</p>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="panel">
+      <div class="label">Next inspection path</div>
+      <ol class="plain-list" style="margin-top: 1rem;">
+        <li><strong>Replay</strong>: see the full controlled runtime path from agent action to human closure.</li>
+        {% if detail.primary_incident %}
+          <li><strong>Incident</strong>: inspect the trigger event and the local evidence window around it.</li>
+          <li><strong>Evidence pack</strong>: export the case as a static operating record.</li>
+        {% endif %}
+      </ol>
+      {% if detail.replay.evidence_issues %}
+        <div class="footer-note">{{ detail.replay.evidence_issues|length }} readiness note{% if detail.replay.evidence_issues|length != 1 %}s{% endif %} remain attached to this case.</div>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

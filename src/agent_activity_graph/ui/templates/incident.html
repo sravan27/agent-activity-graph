@@ -8,6 +8,9 @@
         <h2 class="section-title" style="margin-top: 0.5rem;">{{ detail.incident.title }}</h2>
         <p>{{ evidence_pack.executive_summary }}</p>
         <div class="toolbar" style="margin-top: 1.25rem;">
+          {% if evidence_pack.review_case_id %}
+            <a class="button-link" href="/reviews/{{ evidence_pack.review_case_id }}">Open review case</a>
+          {% endif %}
           <a class="button-link" href="/workflows/{{ detail.workflow.workflow_id }}/replay">Open replay</a>
           <a class="button-link button-link--primary" href="/incidents/{{ detail.incident.incident_id }}/evidence-pack">Review evidence pack</a>
           <a class="button-link" href="/incidents/{{ detail.incident.incident_id }}/evidence-pack.md">Download markdown</a>
@@ -50,7 +53,7 @@
       </div>
       <div class="summary-box">
         <div class="label">Evidence status</div>
-        <div class="value" style="font-size: 1rem;">{{ evidence_pack.evidence_status.replace("_", " ") }}</div>
+        <div class="value" style="font-size: 1rem;">{{ evidence_pack.evidence_status.replace("_", " ") }} · {{ evidence_pack.evidence_score }}</div>
       </div>
     </div>
   </section>
@@ -141,7 +144,27 @@
     </div>
 
     <div class="panel">
-      <div class="label" style="margin-bottom: 0.75rem;">Recommended next actions</div>
+      <div class="label" style="margin-bottom: 0.75rem;">Resolution and next actions</div>
+      {% if evidence_pack.decision_code or evidence_pack.approver_role or evidence_pack.closure_status %}
+        <div class="fact-grid" style="margin-bottom: 1rem;">
+          <div class="fact">
+            <strong>Decision code</strong>
+            <p class="mono">{{ evidence_pack.decision_code or "n/a" }}</p>
+          </div>
+          <div class="fact">
+            <strong>Approver role</strong>
+            <p>{{ evidence_pack.approver_role or "n/a" }}</p>
+          </div>
+          <div class="fact">
+            <strong>Closure</strong>
+            <p>{{ evidence_pack.closure_status or "n/a" }}</p>
+          </div>
+          <div class="fact">
+            <strong>Remediation owner</strong>
+            <p>{{ evidence_pack.remediation_owner or "n/a" }}</p>
+          </div>
+        </div>
+      {% endif %}
       <ol class="plain-list" style="margin-top: 0.5rem;">
         {% for action in evidence_pack.recommended_actions %}
           <li><strong>{{ action }}</strong></li>

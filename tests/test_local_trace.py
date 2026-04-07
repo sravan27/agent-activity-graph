@@ -35,6 +35,8 @@ def test_local_trace_generation_builds_review_case_without_model_calls():
     assert events[3].action_type == "policy_evaluation"
     assert events[3].review_case_id == f"review-{trace.workflow.workflow_id}"
     assert events[4].human_decision_reason
+    assert events[4].decision_code == "approve_high_value_invoice"
+    assert events[4].closure_status == "approved"
 
 
 def test_local_trace_ingests_into_verified_replay(session):
@@ -67,3 +69,4 @@ def test_local_trace_ingests_into_verified_replay(session):
     assert replay.source_trace_refs == ["trace_local_test_7001"]
     assert incidents
     assert pack.evidence_status == "verified"
+    assert pack.decision_code == "approve_high_value_invoice"

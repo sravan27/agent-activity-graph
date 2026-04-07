@@ -87,6 +87,8 @@ def test_sample_trace_fixture_maps_public_source_mcp_review_path():
     assert events[1].target_system == "mcp:finance-erp-gateway"
     assert events[3].policy_rule_ids == ["large_invoice_requires_escalation"]
     assert events[4].review_case_id == "review-trace-proof-5001"
+    assert events[4].decision_code == "approve_high_value_invoice"
+    assert events[4].closure_status == "approved"
 
 
 def test_sample_trace_fixture_ingests_as_verified_review_case(session):
@@ -357,9 +359,8 @@ def test_incomplete_trace_is_marked_for_enrichment(session):
 
     replay = build_replay_timeline(session, "wf-trace-4001", persist=False)
 
-    assert replay.evidence_status == "needs_enrichment"
+    assert replay.evidence_status == "integrity_warning"
     assert any("missing policy_rule_ids" in issue for issue in replay.evidence_issues)
-    assert any("missing review_case_id" in issue for issue in replay.evidence_issues)
     assert any("missing authority_subject" in issue for issue in replay.evidence_issues)
 
 

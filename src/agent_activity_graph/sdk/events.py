@@ -55,6 +55,13 @@ class WorkflowEvent(BaseModel):
     review_case_id: str | None = None
     review_state: str | None = None
     human_decision_reason: str | None = None
+    decision_code: str | None = None
+    decision_rationale: str | None = None
+    approved_exception_type: str | None = None
+    approver_role: str | None = None
+    remediation_owner: str | None = None
+    remediation_due_by: datetime | None = None
+    closure_status: str | None = None
     due_by: datetime | None = None
     source_trace_ref: str | None = None
     source_system_ref: str | None = None
@@ -85,7 +92,7 @@ class WorkflowEvent(BaseModel):
     def normalize_timestamp(cls, value: datetime) -> datetime:
         return ensure_utc(value)
 
-    @field_validator("due_by")
+    @field_validator("due_by", "remediation_due_by")
     @classmethod
     def normalize_due_by(cls, value: datetime | None) -> datetime | None:
         return ensure_utc(value) if value else None
@@ -251,6 +258,13 @@ class ReplayEntry(BaseModel):
     review_case_id: str | None = None
     review_state: str | None = None
     human_decision_reason: str | None = None
+    decision_code: str | None = None
+    decision_rationale: str | None = None
+    approved_exception_type: str | None = None
+    approver_role: str | None = None
+    remediation_owner: str | None = None
+    remediation_due_by: datetime | None = None
+    closure_status: str | None = None
     due_by: datetime | None = None
     source_trace_ref: str | None = None
     source_system_ref: str | None = None
@@ -286,7 +300,9 @@ class ReplayTimeline(BaseModel):
     actor_handoff_count: int
     review_case_id: str | None = None
     source_trace_refs: list[str] = Field(default_factory=list)
+    review_readiness_spec_version: str | None = None
     evidence_status: str = "verified"
+    evidence_score: int = 100
     evidence_issues: list[str] = Field(default_factory=list)
     highlights: list[ReplayHighlight] = Field(default_factory=list)
     entries: list[ReplayEntry]
@@ -307,6 +323,65 @@ class IncidentDetail(BaseModel):
     replay: ReplayTimeline
 
 
+class ReviewCaseSummary(BaseModel):
+    review_case_id: str
+    workflow_id: str
+    workflow_name: str
+    business_object_id: str
+    status: str
+    review_state: str | None = None
+    policy_decision: str | None = None
+    title: str
+    summary: str
+    due_by: datetime | None = None
+    business_consequence: str | None = None
+    evidence_status: str = "verified"
+    evidence_score: int = 100
+    authority_owner: str | None = None
+    human_owner: str | None = None
+    approver_role: str | None = None
+    closure_status: str | None = None
+    primary_incident_id: str | None = None
+    incident_count: int = 0
+    decision_code: str | None = None
+    approved_exception_type: str | None = None
+    remediation_owner: str | None = None
+    remediation_due_by: datetime | None = None
+
+
+class ReviewCaseDetail(BaseModel):
+    review_case: ReviewCaseSummary
+    workflow: WorkflowSummary
+    replay: ReplayTimeline
+    incidents: list[IncidentSummary] = Field(default_factory=list)
+    primary_incident: IncidentSummary | None = None
+    policy_event: WorkflowEvent | None = None
+    resolution_event: WorkflowEvent | None = None
+    case_events: list[WorkflowEvent] = Field(default_factory=list)
+
+
+class ReviewReadinessCategory(BaseModel):
+    key: str
+    label: str
+    score: int
+    passed_checks: int
+    total_checks: int
+    hard_fail_reasons: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class ReviewReadinessReport(BaseModel):
+    spec_version: str
+    target_type: str
+    target_id: str
+    status: str
+    overall_score: int
+    hard_fail_reasons: list[str] = Field(default_factory=list)
+    issues: list[str] = Field(default_factory=list)
+    summary: str
+    categories: list[ReviewReadinessCategory] = Field(default_factory=list)
+
+
 class EvidencePack(BaseModel):
     incident_id: str
     workflow_id: str
@@ -320,9 +395,18 @@ class EvidencePack(BaseModel):
     risk_category: str | None = None
     business_consequence: str | None = None
     final_outcome: str
+    review_readiness_spec_version: str | None = None
     evidence_status: str = "verified"
+    evidence_score: int = 100
     evidence_issues: list[str] = Field(default_factory=list)
     source_trace_refs: list[str] = Field(default_factory=list)
+    decision_code: str | None = None
+    decision_rationale: str | None = None
+    approved_exception_type: str | None = None
+    approver_role: str | None = None
+    remediation_owner: str | None = None
+    remediation_due_by: datetime | None = None
+    closure_status: str | None = None
     findings: list[ReplayHighlight] = Field(default_factory=list)
     chronology: list[ReplayEntry] = Field(default_factory=list)
     recommended_actions: list[str] = Field(default_factory=list)

@@ -1,0 +1,110 @@
+{
+  "source": "openai_agents",
+  "workflow": {
+    "workflow_id": "wf-trace-human-loop-5101",
+    "workflow_name": "Invoice Approval with Agent Participation",
+    "business_object_type": "invoice",
+    "business_object_id": "INV-TRACE-HITL-5101",
+    "workflow_defaults": {
+      "invoice_amount": 8900,
+      "currency": "USD",
+      "vendor_id": "VENDOR-HITL-5101",
+      "vendor_name": "Canopy Logistics",
+      "po_number": null,
+      "payment_batch_cutoff": "2026-04-02T14:00:00Z",
+      "invoice_due_date": "2026-04-02",
+      "cost_center": "PROCUREMENT-11",
+      "payment_terms": "Net 15",
+      "risk_category": "policy_breach_risk",
+      "business_consequence": "If the invoice is released without a PO match, procurement controls are bypassed and the payment must be manually unwound.",
+      "trace_fixture_basis": "Public-source-derived fixture based on the OpenAI Agents human-in-the-loop approval pattern, mapped into the invoice review control loop."
+    }
+  },
+  "spans": [
+    {
+      "span_id": "span-5101-01",
+      "name": "Classify invoice",
+      "start_time": "2026-04-02T09:00:00Z",
+      "attributes": {
+        "openinference.span.kind": "agent",
+        "agent.name": "AP Agent",
+        "trace.id": "trace_5101humanloopinvoice00000001",
+        "aag.workflow.process_step": "classification",
+        "aag.action_summary": "AP Agent classified the invoice into a procurement review lane because the PO field was missing.",
+        "aag.permission_scope": "invoice:classify",
+        "aag.authority_subject": "AP Agent may classify invoices and collect supporting evidence before proposing approval.",
+        "aag.authority_delegation_source": "Finance AP delegation policy v2026.03",
+        "aag.headline": "Agent classified the invoice into a human review lane",
+        "service.name": "openai-agents-runtime"
+      }
+    },
+    {
+      "span_id": "span-5101-02",
+      "name": "Prepare approval packet",
+      "start_time": "2026-04-02T09:03:00Z",
+      "attributes": {
+        "openinference.span.kind": "agent",
+        "agent.name": "AP Agent",
+        "trace.id": "trace_5101humanloopinvoice00000001",
+        "aag.workflow.process_step": "approval_recommendation",
+        "aag.action_summary": "AP Agent proposed approval even though the purchase order reference was still missing.",
+        "aag.permission_scope": "invoice:approve:proposal",
+        "aag.authority_subject": "AP Agent may prepare approval packets but must stop when required procurement evidence is missing.",
+        "aag.authority_delegation_source": "Procurement controls manual v2026.01",
+        "aag.why_it_mattered": "The agent reached the point where a human reviewer had to decide whether the missing PO was a hard stop.",
+        "service.name": "openai-agents-runtime"
+      }
+    },
+    {
+      "span_id": "span-5101-03",
+      "name": "Policy evaluation",
+      "start_time": "2026-04-02T09:04:00Z",
+      "attributes": {
+        "trace.id": "trace_5101humanloopinvoice00000001",
+        "aag.action_type": "policy_evaluation",
+        "aag.workflow.process_step": "policy_gate",
+        "aag.action_summary": "Policy engine blocked the proposed approval because required PO evidence was missing.",
+        "aag.policy_status": "blocked",
+        "aag.policy_rule_ids": ["missing_required_fields"],
+        "aag.policy_explanation": "Purchase order number is required before agent-proposed approval can proceed.",
+        "aag.recommended_next_action": "Route the invoice to an AP manager and place the payment on manual hold until the PO is supplied.",
+        "aag.review_case_id": "review-trace-human-loop-5101",
+        "aag.review_state": "pending_human_review",
+        "aag.due_by": "2026-04-02T14:00:00Z",
+        "aag.metadata.review_owner_name": "AP Manager",
+        "aag.metadata.review_owner_role": "AP Manager",
+        "aag.headline": "Policy gate blocked the invoice and opened a review case",
+        "service.name": "policy-engine"
+      }
+    },
+    {
+      "span_id": "span-5101-04",
+      "name": "AP manager review",
+      "start_time": "2026-04-02T09:11:00Z",
+      "attributes": {
+        "trace.id": "trace_5101humanloopinvoice00000001",
+        "aag.actor_type": "human",
+        "aag.actor_id": "ap-manager-11",
+        "aag.actor_name": "AP Manager",
+        "aag.action_type": "reject_invoice",
+        "aag.workflow.process_step": "human_review",
+        "aag.action_summary": "AP Manager rejected the approval request and held the invoice until procurement provides the PO.",
+        "aag.permission_scope": "invoice:review",
+        "aag.authority_subject": "AP Manager can reject or hold invoices when required procurement evidence is missing.",
+        "aag.authority_delegation_source": "Procurement controls manual v2026.01",
+        "aag.review_case_id": "review-trace-human-loop-5101",
+        "aag.review_state": "resolved_by_human",
+        "aag.human_decision_reason": "Rejected because approving without a PO would breach procurement controls.",
+        "aag.decision_code": "reject_missing_purchase_order",
+        "aag.decision_rationale": "The invoice cannot enter payment release until procurement restores the missing PO evidence.",
+        "aag.approved_exception_type": "missing_purchase_order",
+        "aag.approver_role": "AP Manager",
+        "aag.remediation_owner": "Procurement Operations",
+        "aag.remediation_due_by": "2026-04-02T16:00:00Z",
+        "aag.closure_status": "rejected",
+        "aag.headline": "AP Manager rejected the review case and kept the invoice on hold",
+        "service.name": "finance-console"
+      }
+    }
+  ]
+}

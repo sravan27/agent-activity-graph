@@ -80,6 +80,13 @@ def map_event_record(record: EventRecord) -> WorkflowEvent:
         review_case_id=record.review_case_id,
         review_state=record.review_state,
         human_decision_reason=record.human_decision_reason,
+        decision_code=record.decision_code,
+        decision_rationale=record.decision_rationale,
+        approved_exception_type=record.approved_exception_type,
+        approver_role=record.approver_role,
+        remediation_owner=record.remediation_owner,
+        remediation_due_by=ensure_utc(record.remediation_due_by) if record.remediation_due_by else None,
+        closure_status=record.closure_status,
         due_by=ensure_utc(record.due_by) if record.due_by else None,
         source_trace_ref=record.source_trace_ref,
         source_system_ref=record.source_system_ref,
@@ -230,10 +237,52 @@ def _resolve_outcome_status(event: WorkflowEvent, decision: PolicyDecision) -> O
     return event.outcome_status
 
 
+def _is_high_risk_write_boundary(event: WorkflowEvent) -> bool:
+    if event.actor_type != ActorType.AGENT:
+        return False
+    if event.target_system not in {"erp-payments", "finance-approval-gateway"}:
+        return False
+    return event.action_type in {"approve_invoice", "release_payment", "call_mcp_tool"}
+
+
+def _default_review_state(event: WorkflowEvent, decision: PolicyDecision) -> str | None:
+    if event.actor_type == ActorType.HUMAN and event.action_type in {"human_approve_invoice", "reject_invoice", "human_review_step"}:
+        return "resolved_by_human"
+    if decision.decision != PolicyStatus.ALLOWED or _is_high_risk_write_boundary(event):
+        return "pending_human_review"
+    return event.review_state
+
+
+def _ensure_review_case(event: WorkflowEvent, decision: PolicyDecision) -> WorkflowEvent:
+    needs_case = decision.decision != PolicyStatus.ALLOWED or _is_high_risk_write_boundary(event)
+    if not needs_case:
+        return event
+
+    metadata = dict(event.metadata)
+    auto_created = False
+    review_case_id = event.review_case_id
+    if not review_case_id:
+        review_case_id = f"review-{event.workflow_id}"
+        auto_created = True
+    if auto_created:
+        metadata["_review_case"] = {
+            "auto_created": True,
+            "reason": "policy_gate_or_high_risk_write_boundary",
+        }
+
+    return event.model_copy(
+        update={
+            "review_case_id": review_case_id,
+            "review_state": event.review_state or _default_review_state(event, decision),
+            "metadata": metadata,
+        }
+    )
+
+
 def _apply_policy(event: WorkflowEvent, decision: PolicyDecision) -> WorkflowEvent:
     metadata = dict(event.metadata)
     metadata["_policy"] = {**decision.model_dump(mode="json"), "source": "evaluated"}
-    return event.model_copy(
+    resolved_event = event.model_copy(
         update={
             "policy_status": decision.decision,
             "policy_rule_ids": [violation.rule_id for violation in decision.violated_rules],
@@ -241,18 +290,20 @@ def _apply_policy(event: WorkflowEvent, decision: PolicyDecision) -> WorkflowEve
             "metadata": metadata,
         }
     )
+    return _ensure_review_case(resolved_event, decision)
 
 
 def _apply_preserved_policy(event: WorkflowEvent, decision: PolicyDecision) -> WorkflowEvent:
     metadata = dict(event.metadata)
     metadata["_policy"] = {**decision.model_dump(mode="json"), "source": "preserved"}
-    return event.model_copy(
+    resolved_event = event.model_copy(
         update={
             "policy_rule_ids": event.policy_rule_ids or [violation.rule_id for violation in decision.violated_rules],
             "outcome_status": _resolve_outcome_status(event, decision),
             "metadata": metadata,
         }
     )
+    return _ensure_review_case(resolved_event, decision)
 
 
 def _incident_severity(decision: PolicyStatus) -> str:
@@ -342,6 +393,13 @@ def _record_event(session: Session, event: WorkflowEvent) -> EventRecord:
         review_case_id=event.review_case_id,
         review_state=event.review_state,
         human_decision_reason=event.human_decision_reason,
+        decision_code=event.decision_code,
+        decision_rationale=event.decision_rationale,
+        approved_exception_type=event.approved_exception_type,
+        approver_role=event.approver_role,
+        remediation_owner=event.remediation_owner,
+        remediation_due_by=event.remediation_due_by,
+        closure_status=event.closure_status,
         due_by=event.due_by,
         source_trace_ref=event.source_trace_ref,
         source_system_ref=event.source_system_ref,
@@ -457,6 +515,25 @@ def list_incidents(session: Session, workflow_id: str | None = None) -> list[Inc
         query = query.where(IncidentRecord.workflow_id == workflow_id)
     records = session.scalars(query.order_by(IncidentRecord.created_at.desc())).all()
     return [map_incident_record(record) for record in records]
+
+
+def list_review_case_ids(session: Session) -> list[str]:
+    rows = session.execute(
+        select(EventRecord.review_case_id)
+        .where(EventRecord.review_case_id.is_not(None))
+        .distinct()
+        .order_by(EventRecord.review_case_id.asc())
+    )
+    return [row[0] for row in rows if row[0]]
+
+
+def get_review_case_events(session: Session, review_case_id: str) -> list[WorkflowEvent]:
+    records = session.scalars(
+        select(EventRecord)
+        .where(EventRecord.review_case_id == review_case_id)
+        .order_by(EventRecord.timestamp.asc(), EventRecord.event_id.asc())
+    ).all()
+    return [map_event_record(record) for record in records]
 
 
 def get_incident(session: Session, incident_id: str) -> IncidentSummary | None:

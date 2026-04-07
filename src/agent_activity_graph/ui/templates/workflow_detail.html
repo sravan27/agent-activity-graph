@@ -9,7 +9,12 @@
         <h2 class="section-title" style="margin-top: 0.5rem;">{{ workflow.business_object_id }} <span style="font-weight: 400; color: var(--text-muted);">/</span> <span class="mono">{{ workflow.workflow_id }}</span></h2>
         <p>{{ replay.summary_headline }}</p>
         <div class="toolbar" style="margin-top: 1.5rem;">
-          <a class="button-link button-link--primary" href="/workflows/{{ workflow.workflow_id }}/replay">Open replay timeline</a>
+          {% if replay.review_case_id %}
+            <a class="button-link button-link--primary" href="/reviews/{{ replay.review_case_id }}">Open review case</a>
+            <a class="button-link" href="/workflows/{{ workflow.workflow_id }}/replay">Open replay timeline</a>
+          {% else %}
+            <a class="button-link button-link--primary" href="/workflows/{{ workflow.workflow_id }}/replay">Open replay timeline</a>
+          {% endif %}
           {% if incidents %}
             <a class="button-link" href="/incidents/{{ incidents[0].incident_id }}" style="border-color: var(--risk); color: var(--risk);">Open incident record</a>
           {% endif %}
@@ -23,12 +28,14 @@
         </div>
         <div class="signal-card {% if latest_incident %}signal-card--risk{% else %}signal-card--policy{% endif %}">
           <div class="eyebrow" {% if latest_incident %}style="color: var(--risk);"{% endif %}>Immediate next action</div>
-          {% if latest_incident %}
+          {% if replay.review_case_id %}
+            <strong>Open the review case and inspect the replay before changing the workflow state.</strong>
+            <p>{{ latest_incident.title if latest_incident else replay.business_consequence or "This run is reviewable as a policy-gated case, not just a completed workflow." }}</p>
+            <div class="helper mono">Review case: {{ replay.review_case_id }}</div>
+            <div class="helper" style="margin-top: 0.5rem;">Readiness score: {{ replay.evidence_score }} under {{ replay.review_readiness_spec_version }}</div>
+          {% elif latest_incident %}
             <strong>{{ latest_incident.recommended_next_action }}</strong>
             <p>{{ latest_incident.title }}</p>
-            {% if replay.review_case_id %}
-              <div class="helper mono">Review case: {{ replay.review_case_id }}</div>
-            {% endif %}
           {% else %}
             <strong>No incident follow-up is open for this run.</strong>
             <p>{{ replay.business_consequence or "Replay remains the step-level record if the workflow needs later review." }}</p>
@@ -120,6 +127,7 @@
               {{ replay.evidence_status.replace("_", " ") }}
             </strong>
           </div>
+          <div class="helper" style="margin-top: 0.35rem;">Readiness score {{ replay.evidence_score }}{% if replay.review_readiness_spec_version %} · {{ replay.review_readiness_spec_version }}{% endif %}</div>
           {% if replay.evidence_issues %}
             <div class="helper" style="margin-top: 0.5rem;">{{ replay.evidence_issues|length }} note{% if replay.evidence_issues|length != 1 %}s{% endif %} explain what still needs to be made explicit.</div>
           {% endif %}
@@ -146,22 +154,23 @@
       </div>
     </div>
     <div class="panel">
-      <div class="label">Active review case</div>
-      {% if latest_incident %}
+      <div class="label">Review case</div>
+      {% if replay.review_case_id %}
         <div style="margin-top: 1.5rem;">
-          <a class="incident-card" href="/incidents/{{ latest_incident.incident_id }}" style="display: block; border-left: 4px solid var(--risk);">
+          <a class="incident-card" href="/reviews/{{ replay.review_case_id }}" style="display: block; border-left: 4px solid var(--accent);">
             <div class="card-header">
-              <h4>{{ latest_incident.title }}</h4>
-              <span class="badge badge--{{ latest_incident.severity }}">{{ latest_incident.severity }}</span>
+              <h4>{{ replay.review_case_id }}</h4>
+              <span class="badge badge--{{ replay.evidence_status }}">{{ replay.evidence_status.replace("_", " ") }}</span>
             </div>
             <div class="card-body">
-              <p style="color: var(--text-main); margin-bottom: 0.75rem;">{{ latest_incident.explanation }}</p>
-              <div class="helper"><strong>Next action:</strong> {{ latest_incident.recommended_next_action }}</div>
-              {% if replay.review_case_id %}
-                <div class="helper mono" style="margin-top: 0.5rem;">{{ replay.review_case_id }}</div>
-              {% endif %}
+              <p style="color: var(--text-main); margin-bottom: 0.75rem;">{{ replay.policy_story }}</p>
+              <div class="helper"><strong>Next action:</strong> Open the review case to inspect the replay, incident, and exportable evidence record together.</div>
+              <div class="helper mono" style="margin-top: 0.5rem;">Score {{ replay.evidence_score }}{% if latest_incident %} · Incident {{ latest_incident.incident_id }}{% endif %}</div>
             </div>
           </a>
+          {% if latest_incident %}
+            <div class="footer-note">Primary incident: <a href="/incidents/{{ latest_incident.incident_id }}">{{ latest_incident.incident_id }}</a></div>
+          {% endif %}
           {% if incidents|length > 1 %}
             <div class="footer-note">{{ incidents|length - 1 }} earlier incident{% if incidents|length - 1 != 1 %}s{% endif %} remain attached to this workflow.</div>
           {% endif %}

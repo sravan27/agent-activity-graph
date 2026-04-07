@@ -125,6 +125,8 @@
         "aag.review_case_id": "review-wf-ollama-local-7001",
         "aag.review_state": "pending_human_review",
         "aag.due_by": "2026-04-08T14:00:00Z",
+        "aag.metadata.review_owner_name": "Finance Director",
+        "aag.metadata.review_owner_role": "Finance Director",
         "aag.headline": "Policy gate escalated the invoice into a finance review case",
         "service.name": "policy-engine"
       },
@@ -150,6 +152,11 @@
         "aag.review_case_id": "review-wf-ollama-local-7001",
         "aag.review_state": "resolved_by_human",
         "aag.human_decision_reason": "Approved because the PO matched, the spend was authorized, and missing the cut-off would have delayed vendor payment.",
+        "aag.decision_code": "approve_high_value_invoice",
+        "aag.decision_rationale": "Approved because source-system evidence was complete and the payment cut-off risk outweighed waiting for another review cycle.",
+        "aag.approved_exception_type": "high_value_same_day_payment",
+        "aag.approver_role": "Finance Director",
+        "aag.closure_status": "approved",
         "aag.headline": "Finance Director resolved the review case and approved the invoice",
         "service.name": "finance-review-console"
       },

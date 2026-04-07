@@ -2,6 +2,10 @@
 
 Agentic enterprise software is missing a runtime evidence layer.
 
+Tracing tells you what ran.
+
+Review-ready evidence tells you what a human can approve.
+
 Most systems today stop at orchestration. They can route work, call tools, and produce outcomes, but they do not preserve the controlled runtime truth of what happened inside a business workflow.
 
 That gap becomes obvious the moment an agent touches finance, procurement, support, or operations work.

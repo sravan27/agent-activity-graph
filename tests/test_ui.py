@@ -36,6 +36,7 @@ def test_replay_page_keeps_control_story_visible(tmp_path):
         response = client.get("/workflows/wf-invoice-3001/replay")
         assert response.status_code == 200
         assert "Control points" in response.text
+        assert "Open review case" in response.text
         assert "Policy verdict" in response.text
         assert "Business consequence" in response.text
         assert "Review case" in response.text
@@ -51,7 +52,8 @@ def test_workflow_detail_reads_as_operational_surface(tmp_path):
         response = client.get("/workflows/wf-invoice-3001")
         assert response.status_code == 200
         assert "Immediate next action" in response.text
-        assert "Active review case" in response.text
+        assert "Open review case" in response.text
+        assert "Review case" in response.text
         assert "Run chronology" in response.text
     finally:
         client.close()
@@ -65,7 +67,7 @@ def test_incident_page_stays_serious_and_actionable(tmp_path):
         response = client.get("/incidents/inc_evt_wf_3001_05")
         assert response.status_code == 200
         assert "Trigger Event" in response.text
-        assert "Recommended next actions" in response.text
+        assert "Resolution and next actions" in response.text
         assert "manual hold" in response.text
     finally:
         client.close()
@@ -82,7 +84,26 @@ def test_evidence_pack_avoids_theatrical_footer(tmp_path):
         assert "Chronology" in response.text
         assert "Next actions" in response.text
         assert "Evidence status" in response.text
+        assert "Resolution record" in response.text
         assert "END OF EVIDENCE PACK" not in response.text
+    finally:
+        client.close()
+        app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_review_queue_and_review_case_routes_load(tmp_path):
+    client, app, engine = _build_seeded_client(tmp_path)
+    try:
+        queue_response = client.get("/reviews")
+        assert queue_response.status_code == 200
+        assert "Review queue" in queue_response.text
+        assert "review-wf-invoice-3001" in queue_response.text
+
+        case_response = client.get("/reviews/review-wf-invoice-3001")
+        assert case_response.status_code == 200
+        assert "Resolution record" in case_response.text
+        assert "reject_missing_purchase_order" in case_response.text
     finally:
         client.close()
         app.dependency_overrides.clear()

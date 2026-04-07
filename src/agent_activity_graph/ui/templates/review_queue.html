@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Agent Activity Graph | Review Queue{% endblock %}
+{% block content %}
+  <section class="panel" style="border: 1px solid var(--border-strong); border-top: 4px solid var(--accent);">
+    <div class="label">Review queue</div>
+    <h2 class="section-title" style="margin-top: 0.5rem;">Policy-gated agent actions waiting on human review.</h2>
+    <p>
+      Each row is a review case, not just a workflow run. Open the case when you need to see
+      the policy stop, authority owner, due-by, evidence readiness, and the supporting replay
+      in one place.
+    </p>
+  </section>
+
+  <section class="panel" style="margin-top: 1rem;">
+    <div class="label">Active review cases</div>
+    {% if active_cases %}
+      <table style="margin-top: 1rem;">
+        <thead>
+          <tr>
+            <th>Case</th>
+            <th>Policy</th>
+            <th>Authority owner</th>
+            <th>Human owner</th>
+            <th>Due by</th>
+            <th>Evidence</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for case in active_cases %}
+            <tr>
+              <td>
+                <a href="/reviews/{{ case.review_case_id }}"><strong>{{ case.review_case_id }}</strong></a>
+                <div class="helper">{{ case.business_object_id }} · {{ case.title }}</div>
+              </td>
+              <td>
+                {% if case.policy_decision %}
+                  <span class="badge badge--{{ case.policy_decision }}">{{ case.policy_decision.replace("_", " ") }}</span>
+                {% else %}
+                  <span class="helper">n/a</span>
+                {% endif %}
+              </td>
+              <td>{{ case.authority_owner or "n/a" }}</td>
+              <td>{{ case.human_owner or "unassigned" }}</td>
+              <td class="mono">{{ case.due_by.strftime("%Y-%m-%d %H:%M UTC") if case.due_by else "n/a" }}</td>
+              <td>
+                <span class="badge badge--{{ case.evidence_status }}">{{ case.evidence_status.replace("_", " ") }}</span>
+                <div class="helper">Score {{ case.evidence_score }}</div>
+              </td>
+              <td><span class="badge badge--{{ case.status }}">{{ case.status.replace("_", " ") }}</span></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No active review cases are open.</p>
+    {% endif %}
+  </section>
+
+  {% if resolved_cases %}
+    <section class="panel" style="margin-top: 1rem;">
+      <div class="label">Recently resolved</div>
+      <table style="margin-top: 1rem;">
+        <thead>
+          <tr>
+            <th>Case</th>
+            <th>Decision code</th>
+            <th>Approver role</th>
+            <th>Closure</th>
+            <th>Evidence</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for case in resolved_cases %}
+            <tr>
+              <td>
+                <a href="/reviews/{{ case.review_case_id }}"><strong>{{ case.review_case_id }}</strong></a>
+                <div class="helper">{{ case.business_object_id }} · {{ case.title }}</div>
+              </td>
+              <td class="mono">{{ case.decision_code or "n/a" }}</td>
+              <td>{{ case.approver_role or case.authority_owner or "n/a" }}</td>
+              <td><span class="badge badge--{{ case.closure_status or case.status }}">{{ (case.closure_status or case.status).replace("_", " ") }}</span></td>
+              <td>
+                <span class="badge badge--{{ case.evidence_status }}">{{ case.evidence_status.replace("_", " ") }}</span>
+                <div class="helper">Score {{ case.evidence_score }}</div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  {% endif %}
+{% endblock %}

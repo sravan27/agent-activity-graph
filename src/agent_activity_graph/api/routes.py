@@ -16,6 +16,8 @@ from agent_activity_graph.policy.evaluator import PolicyEvaluator
 from agent_activity_graph.replay.evidence_pack import build_evidence_pack
 from agent_activity_graph.replay.incident import build_incident_detail
 from agent_activity_graph.replay.timeline import build_replay_timeline
+from agent_activity_graph.review.cases import build_review_case, list_review_cases
+from agent_activity_graph.review.readiness import grade_trace_request, grade_workflow
 from agent_activity_graph.sdk.trace_adapter import map_trace_to_workflow_events
 from agent_activity_graph.sdk.events import (
     EvidencePack,
@@ -23,6 +25,9 @@ from agent_activity_graph.sdk.events import (
     IncidentDetail,
     IncidentSummary,
     ReplayTimeline,
+    ReviewCaseDetail,
+    ReviewCaseSummary,
+    ReviewReadinessReport,
     TraceIngestionRequest,
     TraceIngestionResponse,
     WorkflowDetailResponse,
@@ -137,3 +142,40 @@ def get_incident_evidence_pack(
         return build_evidence_pack(session, incident_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/reviews", response_model=list[ReviewCaseSummary])
+def get_review_case_list(
+    session: Session = Depends(get_session),
+    active_only: bool = True,
+) -> list[ReviewCaseSummary]:
+    return list_review_cases(session, active_only=active_only)
+
+
+@router.get("/reviews/{review_case_id}", response_model=ReviewCaseDetail)
+def get_review_case_detail(
+    review_case_id: str,
+    session: Session = Depends(get_session),
+) -> ReviewCaseDetail:
+    try:
+        return build_review_case(session, review_case_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/review-readiness/workflows/{workflow_id}", response_model=ReviewReadinessReport)
+def get_workflow_review_readiness(
+    workflow_id: str,
+    session: Session = Depends(get_session),
+) -> ReviewReadinessReport:
+    try:
+        return grade_workflow(session, workflow_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/review-readiness/traces/openinference", response_model=ReviewReadinessReport)
+def post_openinference_review_readiness(
+    request: TraceIngestionRequest,
+) -> ReviewReadinessReport:
+    return grade_trace_request(request)

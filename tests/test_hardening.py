@@ -251,7 +251,8 @@ def test_seed_main_prints_deterministic_demo_path(monkeypatch, capsys):
     output = capsys.readouterr().out
 
     assert "http://127.0.0.1:8000/" in output
-    assert "http://127.0.0.1:8000/workflows/wf-invoice-3001" in output
+    assert "http://127.0.0.1:8000/reviews" in output
+    assert "http://127.0.0.1:8000/reviews/review-wf-invoice-3001" in output
     assert "http://127.0.0.1:8000/workflows/wf-invoice-3001/replay" in output
     assert "http://127.0.0.1:8000/incidents/inc_evt_wf_3001_05" in output
     assert "http://127.0.0.1:8000/incidents/inc_evt_wf_3001_05/evidence-pack" in output

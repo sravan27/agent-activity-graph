@@ -22,6 +22,7 @@ from agent_activity_graph.replay.evidence_pack import (
 )
 from agent_activity_graph.replay.incident import build_incident_detail
 from agent_activity_graph.replay.timeline import build_replay_timeline
+from agent_activity_graph.review.cases import build_review_case, list_review_cases
 
 router = APIRouter(include_in_schema=False)
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -54,6 +55,7 @@ def _workflow_context(events: list) -> dict:
 def home(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     workflows = list_workflows(session)
     incidents = list_incidents(session)
+    review_cases = list_review_cases(session, active_only=False)
     rules = list_policy_rules(session)
     return templates.TemplateResponse(
         request,
@@ -61,9 +63,11 @@ def home(request: Request, session: Session = Depends(get_session)) -> HTMLRespo
         {
             "workflow_count": len(workflows),
             "incident_count": len(incidents),
+            "review_case_count": len(review_cases),
             "policy_rule_count": len(rules),
             "recent_workflows": workflows[:3],
             "recent_incidents": incidents[:3],
+            "review_cases": review_cases[:3],
         },
     )
 
@@ -74,6 +78,40 @@ def workflows_page(request: Request, session: Session = Depends(get_session)) ->
         request,
         "workflows.html",
         {"workflows": list_workflows(session)},
+    )
+
+
+@router.get("/reviews", response_class=HTMLResponse)
+def review_queue_page(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
+    review_cases = list_review_cases(session, active_only=False)
+    return templates.TemplateResponse(
+        request,
+        "review_queue.html",
+        {
+            "active_cases": [case for case in review_cases if case.status == "open"],
+            "resolved_cases": [case for case in review_cases if case.status != "open"],
+        },
+    )
+
+
+@router.get("/reviews/{review_case_id}", response_class=HTMLResponse)
+def review_case_page(
+    review_case_id: str,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    try:
+        detail = build_review_case(session, review_case_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    return templates.TemplateResponse(
+        request,
+        "review_case.html",
+        {
+            "detail": detail,
+            "workflow_context": _workflow_context(get_workflow_events(session, detail.workflow.workflow_id)),
+        },
     )
 
 

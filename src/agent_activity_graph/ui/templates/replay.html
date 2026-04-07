@@ -8,6 +8,9 @@
         <h2 class="section-title" style="font-size: 1.95rem; margin-top: 0.5rem;">{{ workflow.business_object_id }} replay</h2>
         <p>{{ replay.summary_headline }}</p>
         <div class="toolbar" style="margin-top: 1.5rem;">
+          {% if replay.review_case_id %}
+            <a class="button-link button-link--primary" href="/reviews/{{ replay.review_case_id }}">Open review case</a>
+          {% endif %}
           <a class="button-link" href="/workflows/{{ workflow.workflow_id }}">Back to workflow detail</a>
         </div>
       </div>
@@ -91,13 +94,22 @@
         </div>
         <div class="fact">
           <strong>Review case</strong>
-          <p class="mono">{{ replay.review_case_id or "n/a" }}</p>
+          <p class="mono">
+            {% if replay.review_case_id %}
+              <a href="/reviews/{{ replay.review_case_id }}">{{ replay.review_case_id }}</a>
+            {% else %}
+              n/a
+            {% endif %}
+          </p>
         </div>
         <div class="fact">
           <strong>Evidence status</strong>
-          <p>{{ replay.evidence_status.replace("_", " ") }}</p>
+          <p>{{ replay.evidence_status.replace("_", " ") }} · score {{ replay.evidence_score }}</p>
         </div>
       </div>
+      {% if replay.review_readiness_spec_version %}
+        <div class="footer-note">Review readiness spec: <span class="mono">{{ replay.review_readiness_spec_version }}</span></div>
+      {% endif %}
       {% if replay.source_trace_refs %}
         <div class="footer-note">Source traces: <span class="mono">{{ replay.source_trace_refs | join(", ") }}</span></div>
       {% endif %}
@@ -109,9 +121,9 @@
 
   <section class="panel" style="margin-top: 1.5rem;">
     <div class="label">Full evidence replay</div>
-    <div class="timeline" style="margin-top: 1.5rem; gap: 1rem;">
+    <div class="timeline" style="margin-top: 1.25rem; gap: 0.75rem;">
       {% for entry in replay.entries %}
-        <div class="timeline-card timeline-card--{{ entry.event_kind }}" style="padding-top: 1rem; padding-bottom: 1rem;">
+        <div class="timeline-card timeline-card--{{ entry.event_kind }}" style="padding-top: 0.875rem; padding-bottom: 0.875rem;">
           <div class="card-header">
             <div>
               <h3><span class="mono" style="color: var(--text-muted); margin-right: 0.5rem;">{{ "%02d"|format(entry.sequence_number) }}</span> {{ entry.headline or entry.process_step }}</h3>
@@ -124,7 +136,7 @@
           </div>
           <div class="card-body">
             {% if entry.action_summary != (entry.headline or entry.process_step) %}
-              <p style="font-size: 1rem; color: var(--text-main); font-weight: 600; margin: 0.5rem 0 0;">{{ entry.action_summary }}</p>
+              <p style="font-size: 0.975rem; color: var(--text-main); font-weight: 600; margin: 0.35rem 0 0;">{{ entry.action_summary }}</p>
             {% endif %}
             <div class="facts-inline">
               <span><strong>Actor:</strong> {{ entry.actor_name }}</span>
@@ -153,6 +165,14 @@
                 {% endif %}
                 {% if entry.human_decision_reason %}
                   <div class="compact-line"><strong>Human decision:</strong> {{ entry.human_decision_reason }}</div>
+                {% endif %}
+                {% if entry.decision_code or entry.closure_status %}
+                  <div class="compact-line">
+                    <strong>Resolution:</strong>
+                    {% if entry.decision_code %}{{ entry.decision_code }}{% endif %}
+                    {% if entry.decision_code and entry.closure_status %} · {% endif %}
+                    {% if entry.closure_status %}{{ entry.closure_status.replace("_", " ") }}{% endif %}
+                  </div>
                 {% endif %}
                 {% if entry.transition_label %}
                   <div class="compact-line"><strong>Actor handoff:</strong> {{ entry.transition_label }}</div>

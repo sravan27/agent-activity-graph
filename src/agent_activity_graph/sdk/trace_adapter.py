@@ -271,6 +271,13 @@ def map_trace_to_workflow_events(request: TraceIngestionRequest) -> list[Workflo
             if _attr(span.attributes, "aag.review_state") or _default_review_state(actor_type, action_type, policy_status)
             else None,
             human_decision_reason=_attr(span.attributes, "aag.human_decision_reason"),
+            decision_code=_attr(span.attributes, "aag.decision_code"),
+            decision_rationale=_attr(span.attributes, "aag.decision_rationale"),
+            approved_exception_type=_attr(span.attributes, "aag.approved_exception_type"),
+            approver_role=_attr(span.attributes, "aag.approver_role"),
+            remediation_owner=_attr(span.attributes, "aag.remediation_owner"),
+            remediation_due_by=_attr(span.attributes, "aag.remediation_due_by"),
+            closure_status=_attr(span.attributes, "aag.closure_status"),
             due_by=_attr(span.attributes, "aag.due_by"),
             source_trace_ref=str(
                 _attr(

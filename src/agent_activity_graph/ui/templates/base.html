@@ -227,7 +227,9 @@
       .badge--allowed,
       .badge--success,
       .badge--completed,
-      .badge--approved {
+      .badge--approved,
+      .badge--review_ready,
+      .badge--closed {
         color: var(--ok);
         background: var(--ok-bg);
         border-color: var(--ok-border);
@@ -236,7 +238,8 @@
       .badge--blocked,
       .badge--failed,
       .badge--high,
-      .badge--rejected {
+      .badge--rejected,
+      .badge--not_review_ready {
         color: var(--risk);
         background: var(--risk-bg);
         border-color: var(--risk-border);
@@ -253,7 +256,8 @@
       .badge--requires_human_review,
       .badge--low,
       .badge--pending,
-      .badge--in_progress {
+      .badge--in_progress,
+      .badge--open {
         color: var(--review);
         background: var(--review-bg);
         border-color: var(--review-border);
@@ -791,6 +795,7 @@
         </div>
         <nav class="nav">
           <a href="/">Thesis</a>
+          <a href="/reviews">Review Queue</a>
           <a href="/workflows">Workflows</a>
         </nav>
       </header>
